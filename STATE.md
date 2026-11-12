@@ -64,8 +64,14 @@ Binaries: `/usr/bin/{Hyprland,hyprctl,hyprlock,hypridle,hyprpaper,distrobox,podm
 | `binds.conf` | full niri+DMS → Hyprland keybind translation |
 | `rules.conf` | window rules (0.53+ `windowrule {}` syntax) |
 | `extra.conf` | sourced by the Physis adapter |
+| `physis-omarchy.conf` | deployed 2026-11-12 by the adapter; `SUPER+SHIFT P/G/O` |
 
-Validation: `Hyprland --verify-config -c ~/.config/hypr/hyprland.conf` → **config ok**.
+`hyprland.conf` defines `$mainMod = SUPER` for sourced files that use the Omarchy
+convention — Hyprland substitutes an undefined variable with an empty string, so
+without it the adapter's binds silently became bare `P`/`H`/`O`.
+
+Validation: `Hyprland --verify-config -c ~/.config/hypr/hyprland.conf` → **config ok**
+(re-verified after the adapter deploy).
 
 Note: Hyprland 0.55 is Lua-first; this config is hyprlang, which still works but
 should be ported to Lua eventually (see `plans/`).
@@ -99,6 +105,17 @@ should be ported to Lua eventually (see `plans/`).
   the function-row binds (F1–F12 + XF86).
 - Full backup of the pre-migration config: `~/debauchery/backups/2026-11-12/`.
 
+## 6b. Physis adapter
+
+- Installed 2026-11-12 from `~/dev/physis-next/adapters/omarchy` (v1.8.8):
+  `~/.local/bin/physis-omarchy{,d}` (release build), `~/.config/hypr/physis-omarchy.conf`,
+  `~/.config/systemd/user/physis-omarchy.service` (disabled until a Hyprland
+  session starts it via `exec-once`), desktop entry + icon.
+- `extra.conf` sources the integration; `.pre-omarchy` backups kept there.
+- Under niri the unit is `inactive (dead)` and the daemon exits with
+  "Hyprland session not found" — no restart loop.
+- HUD rebound to `SUPER+SHIFT G` on air (`SUPER SHIFT H` is `movewindow, l`).
+
 ## 7. Distrobox / podman
 
 - `distrobox 1.8.1.2`, `podman 5.4.2`, rootless (`podman info` → `Rootless: true`).
@@ -130,7 +147,10 @@ should be ported to Lua eventually (see `plans/`).
 - [ ] Live Hyprland login test (DMS, overview, function row, media, lock).
 - [ ] Swap DMS niri plugins for Hyprland-aware ones.
 - [x] Make Hyprland the ly default (autologin set 2026-11-12; live verification still pending).
-- [ ] Physis omarchy adapter deployment (needs Hyprland + cargo; see `PHYSIS-ADAPTER.md`).
+- [x] Physis omarchy adapter deployment (2026-11-12: binaries, integration file,
+      unit, desktop entry; `--dry-run` bug fixed). See `PHYSIS-ADAPTER.md`.
+- [ ] Physis adapter live check in a Hyprland session (`SUPER+SHIFT P` / `G` / `O`,
+      socket at `$XDG_RUNTIME_DIR/physis-omarchy.sock`).
 - [ ] Optional: Omarchy Quickshell shell in its own session (see `PLAN.md`).
 - [ ] Optional: Lua port of the Hyprland config.
 - [ ] Optional: root-tier cleanup (`apt-get clean`, journal vacuum, `flatpak uninstall --unused`).

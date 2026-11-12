@@ -594,6 +594,9 @@ Then, in the Hyprland session: `SUPER+SHIFT+P` (inspect), `SUPER+SHIFT+H`
 | Date | Phase | Action | Outcome |
 |---|---|---|---|
 | 2026-11-12 | 0 (plan) | Investigated options, verified host state, wrote this plan | done — nothing applied |
+| 2026-11-12 | 1 | Arch Distrobox `arch-omarchy` created, toolchain installed | done |
+| 2026-11-12 | 3 | Hyprland 0.55.2 installed, config written, `--verify-config` ok | done; live login pending |
+| 2026-11-12 | 5 | Adapter `--dry-run` bug fixed; tests + `demo.sh --mock` pass; adapter deployed; `$mainMod` defined; HUD rebound to `SUPER+SHIFT G` | done; graphical smoke test pending |
 | 2026-11-03 | — | `omarchy-debian` dry-run (pre-existing) | phase `45-hardware.sh` failed; no changes |
 
 ---

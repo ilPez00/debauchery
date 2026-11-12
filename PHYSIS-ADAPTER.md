@@ -42,7 +42,25 @@ hyprctl -j              ──┤
 | `~/.local/bin/physis` (engine) | present |
 | A running Hyprland session | **not yet logged in** |
 
-## 4. Installer bug (confirmed)
+**Deployed 2026-11-12** (Phase 5) while still in the niri session: binaries in
+`~/.local/bin`, `~/.config/hypr/physis-omarchy.conf` + its `source` line in
+`extra.conf`, the systemd user unit and the desktop entry. Only the **live
+graphical smoke test** is outstanding — it needs a Hyprland seat.
+
+Under niri the unit correctly stays `inactive (dead)`; the daemon exits with
+`Hyprland session not found` instead of hanging or looping.
+
+### air shortcut deviation
+
+The integration file binds `SUPER+SHIFT P` (inspect), `SUPER+SHIFT H` (HUD) and
+`SUPER+SHIFT O` (fuzzel ops). On air `binds.conf` already owns `SUPER SHIFT H`
+(`movewindow, l`) and `extra.conf` is sourced **last**, so the adapter would
+have silently stolen that movement bind. The HUD therefore moved to
+**`SUPER+SHIFT G`** in `adapters/omarchy/hypr/physis-omarchy.conf`; `P` and `O`
+were free and are unchanged. Revert the edit if air ever matches stock
+Omarchy-Debian.
+
+## 4. Installer bug (confirmed, **fixed 2026-11-12**)
 
 The adapter `README.md` documents `./install.sh --dry-run`, but the script only
 implements the environment variable:
@@ -64,6 +82,10 @@ Recommended fix (one line, before the env default):
 case "${1:-}" in --dry-run) DRY_RUN=1;; esac
 ```
 
+**Applied 2026-11-12** to `install.sh` right after the `DRY_RUN` env default.
+Verified: `./install.sh --dry-run` prints the plan and changes nothing
+(`~/.config/hypr/extra.conf` md5 identical before/after, no binaries, no unit).
+
 ## 5. Build and test
 
 ```bash
@@ -75,6 +97,10 @@ cargo test --manifest-path adapters/omarchy/Cargo.toml
 Expected: engine fold 56, adapter unit 33, fixtures 6, session/IPC 7, installer
 dry-run/idempotence/uninstall pass, daemon-without-compositor pass. The
 **graphical-session smoke test is UNVERIFIED** (needs a real Hyprland seat).
+
+**Run 2026-11-12:** `cargo test --manifest-path adapters/omarchy/Cargo.toml` →
+fixtures 6/6, session 7/7, remaining suites 0 tests, exit 0. `demo.sh --mock` →
+all 12 steps PASS. Duplicate-bind check: `Hyprland --verify-config` → `config ok`.
 
 ## 6. Deploy
 
@@ -105,7 +131,7 @@ systemctl --user status physis-omarchy --no-pager
 ls -l "$XDG_RUNTIME_DIR/physis-omarchy.sock"
 # in the Hyprland session:
 #   SUPER+SHIFT+P  → terminal inspector for the active window
-#   SUPER+SHIFT+H  → Physis HUD
+#   SUPER+SHIFT+G  → Physis HUD   (air: H is taken by movewindow,l)
 #   SUPER+SHIFT+O  → operation discovery
 ```
 
