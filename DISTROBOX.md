@@ -17,7 +17,8 @@ toolchains only**.
 | distrobox | 1.8.1.2-1 (trixie) |
 | podman | 5.4.2+ds1-2+b2 (trixie), rootless |
 | Subuids | `gio:100000:65536` in `/etc/subuid` + `/etc/subgid` |
-| Container | `arch-omarchy`, image `quay.io/toolbx/arch-toolbox:latest`, home `~/.local/share/distrobox/arch-omarchy-home` |
+| Container | `arch-omarchy` — **created 2026-11-12**, image `quay.io/archlinux/archlinux:latest`, home `~/.local/share/distrobox/arch-omarchy-home` |
+| Image note | `quay.io/toolbx/arch-toolbox:latest` is a **schema1** manifest (podman cannot pull it — hangs at 0 bytes); `quay.io/toolbx-images/...` returns UNAUTHORIZED. Use `quay.io/archlinux/archlinux:latest` (OCI v2) or `docker.io/library/archlinux:latest`. |
 | Disk | 23 GB free (enough; the first attempt failed at 1.4 GB) |
 
 ## 3. Why Distrobox (and not a VM / chroot)
@@ -51,7 +52,7 @@ Debian 13 (kernel, systemd, apt, drivers, Wayland, DMS, Physis)
 mkdir -p ~/.local/share/distrobox/arch-omarchy-home
 distrobox create --pull \
   --name arch-omarchy \
-  --image quay.io/toolbx/arch-toolbox:latest \
+  --image quay.io/archlinux/archlinux:latest \
   --home "$HOME/.local/share/distrobox/arch-omarchy-home"
 ```
 

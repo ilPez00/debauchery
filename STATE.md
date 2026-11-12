@@ -29,7 +29,12 @@
 
 - Display manager: **ly** (`/etc/ly/config.lua`, `waylandsessions = "/usr/share/wayland-sessions"`).
 - `auto_login_session = nil` → no automatic session; the user picks at login.
-- niri is still the session you land on by default (Hyprland is opt-in until verified).
+- **ly auto-logins `gio` into `hyprland`** (set 2026-11-12: `auto_login_session = "hyprland"`,
+  `auto_login_user = "gio"`; previous config backed up as `/etc/ly/config.lua.bak-20261112`).
+  niri stays installed and untouched — log out once and the normal session menu appears.
+- `~/.config/hypr/autostart.conf` imports the compositor env into systemd and starts
+  `graphical-session.target`, which is what pulls in `dms.service`
+  (`Requisite=graphical-session.target`; `start-hyprland` does not start that target).
 
 ## 3. Installed desktop packages
 
@@ -98,9 +103,15 @@ should be ported to Lua eventually (see `plans/`).
 
 - `distrobox 1.8.1.2`, `podman 5.4.2`, rootless (`podman info` → `Rootless: true`).
 - Subuids present: `gio:100000:65536` in `/etc/subuid` and `/etc/subgid`.
-- Container `arch-omarchy` (image `quay.io/toolbx/arch-toolbox:latest`, home
-  `~/.local/share/distrobox/arch-omarchy-home`) — creation in progress at the time
-  of writing (see `DISTROBOX.md`).
+- Container `arch-omarchy` — **created 2026-11-12**, image `quay.io/archlinux/archlinux:latest`,
+  home `~/.local/share/distrobox/arch-omarchy-home`. The original image
+  (`quay.io/toolbx/arch-toolbox:latest`) is a *schema1* manifest that podman can no
+  longer pull; `quay.io/toolbx-images/...` answers UNAUTHORIZED — do not retry those.
+- The container user (`gio`, uid 1000) had **no sudo rights and no password**, so
+  `pacman` could not install anything. A passwordless-sudo drop-in
+  (`/etc/sudoers.d/gio` inside the container) was applied 2026-11-12 to fix this.
+- Toolchain install (git, base-devel, neovim, lazygit, btop, yazi, fzf, ripgrep,
+  fd, bat, zoxide) follows the sudoers fix.
 
 ## 8. Disk (after cleanup)
 
@@ -114,7 +125,7 @@ should be ported to Lua eventually (see `plans/`).
 
 - [ ] Live Hyprland login test (DMS, overview, function row, media, lock).
 - [ ] Swap DMS niri plugins for Hyprland-aware ones.
-- [ ] Make Hyprland the ly default (only after the test passes).
+- [x] Make Hyprland the ly default (autologin set 2026-11-12; live verification still pending).
 - [ ] Physis omarchy adapter deployment (needs Hyprland + cargo; see `PHYSIS-ADAPTER.md`).
 - [ ] Optional: Omarchy Quickshell shell in its own session (see `PLAN.md`).
 - [ ] Optional: Lua port of the Hyprland config.
