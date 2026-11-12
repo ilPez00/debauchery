@@ -110,6 +110,9 @@ should be ported to Lua eventually (see `plans/`).
 - The container user (`gio`, uid 1000) had **no sudo rights and no password**, so
   `pacman` could not install anything. A passwordless-sudo drop-in
   (`/etc/sudoers.d/gio` inside the container) was applied 2026-11-12 to fix this.
+  (The pkexec job that wrote it reported "Request dismissed" on exit, but the
+  write had already landed — `sudo -n true` succeeds and the toolchain install
+  below used it.)
 - Toolchain **installed and verified 2026-11-12**: `git`, `lazygit`, `btop`,
   `yazi`, `fzf`, `ripgrep`, `fd`, `bat`, `zoxide`, `nvim` — all present.
   No AUR helper yet (`paru`/`yay` not installed).
