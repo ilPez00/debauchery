@@ -1,33 +1,47 @@
 # debauchery — air system repo
 
-Working repo for the **air** host (MacBook Air 2016, Debian 13 + niri/DMS):
-plans, options analysis, backups and helper scripts for the Omarchy integration.
+Working repo for **air** (MacBook Air 2016, Debian 13 + niri/DMS): plans,
+system state, configs, backups and helper scripts for the Omarchy / Hyprland
+integration.
 
-## Contents
+## Documents
+
+| Document | Contents |
+|---|---|
+| `STATE.md` | Verified current system state: host, sessions, packages, configs, DMS, distrobox, disk, pending items |
+| `PLAN.md` | Omarchy integration plan: options A–G with verdicts, recommended architecture, phased implementation, guidelines, risks, resources |
+| `MIGRATION-niri-to-hyprland.md` | niri → Hyprland migration: behavior model mapping, full hotkey table, config translation, phases, rollback |
+| `DISTROBOX.md` | Arch Distrobox plan: create/configure/use/AUR/GUI export/teardown/troubleshooting |
+| `DMS-UNDER-HYPRLAND.md` | DMS under Hyprland: compositor detection, keybind mapping, plugin swap, screenshots, verification |
+| `PHYSIS-ADAPTER.md` | Physis omarchy adapter: architecture, build, deploy, verify, installer bug, known mismatches |
+| `ROLLBACK-AND-SAFETY.md` | Rollback per phase, safety rules, backup locations, emergency steps |
+
+## Directories
 
 | Path | What |
 |---|---|
-| `PLAN.md` | Long-form plan: options inventory, recommended architecture, Physis adapter, phased implementation, guidelines, risks, resources |
-| `scripts/backup-desktop.sh` | Back up `~/.config/{niri,dms,hypr,quickshell,waybar,fuzzel,ly}` + session/unit inventory |
-| `scripts/create-arch-distrobox.sh` | Create the Arch Distrobox (PLAN.md Phase 1) |
-| `backups/` | Dated config backups (local; git-ignored) |
-| `notes/` | Running log of applied changes |
+| `configs/hypr/` | Current Hyprland config (`hyprland.conf`, `binds.conf`, `monitors.conf`, `autostart.conf`, `rules.conf`, `extra.conf`) |
+| `scripts/` | `backup-desktop.sh`, `create-arch-distrobox.sh` |
+| `notes/` | Status log (applied changes, disk cleanup account) |
+| `backups/` | Dated config backups (git-ignored) |
 
-## Status
+## Status (2026-11-12)
 
-**Nothing applied yet.** See `PLAN.md` §13 (verification log) and §12 (open
-decisions). The only pre-existing artifact on the host is the 2026-11-03
-`omarchy-debian` dry-run log (`~/.local/state/omarchy-debian/install.log`).
+- Hyprland 0.55.2 installed; config written and `Hyprland --verify-config` → **config ok**.
+- ly offers `hyprland.desktop` / `hyprland-uwsm.desktop`; **niri is still the default**.
+- Arch Distrobox `arch-omarchy` creation started (image pull).
+- Disk reclaimed from 1.4 GB free to 23 GB free.
+- Nothing applied that breaks niri; DMS config untouched.
 
-## Quick start
+## Next
 
-1. Read `PLAN.md` §2 (executive summary) and §12 (open decisions).
-2. Run `scripts/backup-desktop.sh` before any phase.
-3. Recommended first change: Phase 1 — Arch Distrobox (lowest risk, additive).
-4. Log every applied phase in `notes/2026-11-12.md`.
+1. Log into **Hyprland** from ly and verify (see `DMS-UNDER-HYPRLAND.md` §7).
+2. Swap the DMS niri plugins for Hyprland-aware ones if they error.
+3. Only then make Hyprland the ly default.
+4. Optional: Physis adapter, Omarchy shell, Lua config port.
 
 ## Safety
 
-- Every `[SYSTEM]` step in `PLAN.md` is flagged; review before running.
-- niri stays the default session; anything new is an opt-in ly session.
-- Distrobox is for tools, never for the compositor or system services.
+- Every `[SYSTEM]` step is flagged; review before running.
+- niri stays the default until Hyprland is verified.
+- Distrobox is for tools only, never the compositor or system services.
