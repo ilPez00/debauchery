@@ -25,7 +25,7 @@ fi
 die()  { printf 'omarchy-%s: %s\n' "$VERB" "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is missing — sudo apt install $2"; }
 
-dms()  { need dms dms; dms ipc call "$@"; }
+dms()  { need dms dms; command dms ipc call "$@"; }
 
 # First token of Exec= in a .desktop id, from the user dir then the system one.
 desktop_bin() {
@@ -78,7 +78,8 @@ toggle-touchpad layout-toggle window-close-all cmd-terminal-cwd
 launch-browser
 plugin-list plugin-install plugin-remove plugin-update plugin-lock
 plugin-search
-launch-webapp webapp-install webapp-list webapp-remove launch-or-focus"
+launch-webapp webapp-install webapp-list webapp-remove launch-or-focus
+theme-set theme-bg-set theme-bg-next"
 
 # step <arg> -> "<op> <value>" for the dms brightness/audio verbs. The dms
 # increment/decrement verbs take a bare number; set takes a percentage.
@@ -130,6 +131,9 @@ omarchy-shim — Omarchy verbs on DMS + Debian (Tier 1)
   webapp-install <name> <url> [icon]   create the launcher (favicon fetched)
   webapp-list / webapp-remove <name>
   launch-or-focus <class> <cmd...>     focus that window class, else run cmd
+  theme-set [dark|light|toggle]
+  theme-bg-set <image>            absolute path; validated before it is applied
+  theme-bg-next                   next wallpaper in the rotation
   --check / --list
 
 Not implemented on purpose: omarchy-install-*, gaming, PAM/portal writes.
@@ -424,6 +428,24 @@ EOF
     else
       exec "$@"
     fi ;;
+
+  # --- look: mode and background --------------------------------------------
+  theme-set)
+    case "${1:-toggle}" in
+      dark|light|toggle) dms theme "$1" ;;
+      *) die "usage: $SELF [dark|light|toggle]" ;;
+    esac ;;
+
+  theme-bg-set)
+    [ $# -gt 0 ] || die "usage: $SELF <image-path>"
+    # `dms ipc call wallpaper set` takes a PATH, and turns it into a file:// URL
+    # without checking it: a colour or a typo silently becomes a missing file.
+    [ -f "$1" ] || die "no such image: $1"
+    case "$1" in /*) ;; *) die "give an absolute path: $PWD/$1" ;; esac
+    dms wallpaper set "$1" && printf 'background: %s\n' "$1" ;;
+
+  theme-bg-next)
+    dms wallpaper next && printf 'background: %s\n' "$(dms wallpaper get)" ;;
 
   *) die "no such verb (try: omarchy-shim --list)" ;;
 esac

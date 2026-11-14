@@ -164,6 +164,7 @@ should be ported to Lua eventually (see `plans/`).
   print state; remove is the inverse and restarts too, so `plugin-list` tells
   the truth. Round-trip tested on `dankCalendarAgenda` (installed, loaded,
   removed, gone from disk and from the list). 29 shim verbs now.
+- `omarchy-theme-set`, `-theme-bg-set` (path-validated), `-theme-bg-next` (2026-11-14): wrappers around DMS theme/wallpaper; `bg-set` rejects missing or relative paths to avoid the silent bad-path trap.
 - Web apps (Tier 2, 2026-11-14): `omarchy-launch-webapp`, `-webapp-install`,
   `-webapp-list`, `-webapp-remove`, `-launch-or-focus`. Verified with
   `https://example.com` (window class `Chromium`) and a favicon for github.com;

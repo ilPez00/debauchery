@@ -83,6 +83,14 @@ chromium-family browser with `--app` and a `.desktop` file.
 | `omarchy-webapp-remove <name>` | deletes the launcher and its icon; refuses a `.desktop` that is not a web app |
 | `omarchy-launch-or-focus <class> <cmd...>` | focuses the first window whose class contains `<class>`, otherwise runs the command |
 
+Theme verbs (safe wrappers around DMS IPC):
+
+| Verb | What it does |
+|---|---|
+| `omarchy-theme-set [dark\|light\|toggle]` | `dms theme <mode>` |
+| `omarchy-theme-bg-set <image>` | `dms wallpaper set` but **refuses** a missing or non-absolute path, so a colour/typo cannot become a silent `file:///…` write to a non-existent file |
+| `omarchy-theme-bg-next` | next wallpaper in the rotation |
+
 Measured 2026-11-14: `launch-webapp https://example.com` produced a window with
 class `Chromium`, title `example.com_/`; `launch-or-focus Chromium …` focused it
 instead of running the command. `uwsm-app` is present and used to detach.
