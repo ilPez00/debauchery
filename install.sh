@@ -552,6 +552,14 @@ cmd_selftest() {
   if [ "${n_binds:-0}" -ge 20 ]; then log "  ${c_pass}ok${c_off}    $n_binds binds live in this session"; else
     warn "  ${c_fail}FAIL${c_off}  ${n_binds:-0} binds — run: hyprctl reload"; fails=$((fails + 1)); fi
   log "  ${c_dim}--${c_off}    plugins: $n_pl loaded, $n_off disabled"
+
+  # Every verb the omarchy keymap calls must exist, or the key is silently dead.
+  local dead=""
+  for v in $(grep -ohE 'omarchy-[a-z-]+' "$REPO/configs/binds/omarchy.conf" 2>/dev/null | sort -u); do
+    command -v "$v" >/dev/null 2>&1 || dead="$dead $v"
+  done
+  if [ -z "$dead" ]; then log "  ${c_pass}ok${c_off}    every key in the omarchy keymap has a verb"; else
+    warn "  ${c_fail}FAIL${c_off}  dead keys (no such command):$dead"; fails=$((fails + 1)); fi
   step "physis adapter socket" test -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/physis-omarchy.sock"
 
   hr

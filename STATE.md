@@ -140,6 +140,8 @@ should be ported to Lua eventually (see `plans/`).
   `ap`/`ad`/`apres`/`aa`, `pac`/`pacs`/`pacu`, `deb`/`debdoc`/`debst`, `om`/`omk`.
 - Verified 2026-11-14: `doctor` exit 0 (0 fails, 0 warns), both bind profiles
   `config ok`, shims `23/23`, aliases resolve in a clean zsh.
+- `selftest` also checks that every `omarchy-*` verb the omarchy keymap calls
+  resolves on PATH — a missing verb is a dead key, and that is now a FAIL.
 
 ## 6d. DMS plugins (2026-11-14)
 
