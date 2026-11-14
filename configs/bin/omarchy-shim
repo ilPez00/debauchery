@@ -1,0 +1,224 @@
+#!/bin/bash
+# omarchy-shim — Omarchy's command names, backed by DMS / Hyprland / Debian.
+#
+# Omarchy's desktop scripts assume Omarchy's Quickshell shell on Arch. air runs
+# DMS on Debian, so this file keeps the *interface* (names, arguments, exit
+# codes) and retargets each verb. One file, symlinked per verb, deployed by
+# debauchery/scripts/11-omarchy-shims.sh.
+#
+#   omarchy-shim --check        every verb and whether its backing tool exists
+#   omarchy-shim --list         verb names only
+#   omarchy-<verb> [args...]    dispatch on the invoked name
+#
+# Tier 1 only: the verbs muscle memory actually touches. omarchy-install-*,
+# gaming, PAM and portal steps are deliberately not implemented (see
+# docs/CONTRACT.md).
+set -uo pipefail
+
+SELF=$(basename "$0")
+if [ "$SELF" = omarchy-shim ]; then
+  VERB=${1:-help}; [ $# -gt 0 ] && shift
+else
+  VERB=${SELF#omarchy-}
+fi
+
+die()  { printf 'omarchy-%s: %s\n' "$VERB" "$*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "$1 is missing — sudo apt install $2"; }
+
+dms()  { need dms dms; dms ipc call "$@"; }
+hypr() { need hyprctl hyprland; hyprctl "$@"; }
+
+# The deployed verb names. scripts/11-omarchy-shims.sh reads this list back with
+# `omarchy-shim --list`, so there is exactly one place to add a verb.
+VERBS="menu menu-keybindings menu-power menu-system menu-clipboard
+capture-screenshot capture-screenrecording capture-text
+brightness-display brightness-keyboard
+audio-output-volume audio-output-switch audio-input-mute
+media lock night-toggle theme-toggle notifications-toggle
+toggle-touchpad layout-toggle window-close-all cmd-terminal-cwd
+launch-browser"
+
+# step <arg> -> "<op> <value>" for the dms brightness/audio verbs. The dms
+# increment/decrement verbs take a bare number; set takes a percentage.
+step() {
+  local arg=${1:-up} def=${2:-5} v
+  case "$arg" in
+    ''|up|+)   printf 'increment %s' "$def" ;;
+    down|-)    printf 'decrement %s' "$def" ;;
+    +*)        v=${arg#+}; v=${v%\%}; printf 'increment %s' "$v" ;;
+    -*)        v=${arg#-}; v=${v%\%}; printf 'decrement %s' "$v" ;;
+    *%|*[0-9]) printf 'set %s' "$arg" ;;
+    *)         die "usage: $SELF [+N%|-N%|N%|up|down]" ;;
+  esac
+}
+
+verb_help() {
+  cat <<'EOF'
+omarchy-shim — Omarchy verbs on DMS + Debian (Tier 1)
+
+  menu                    shell menu              (dms dankMenu)
+  menu-keybindings        keybind overlay         (dms keybinds)
+  menu-power              power menu              (dms powermenu)
+  menu-clipboard          clipboard manager       (dms clipboard)
+  capture-screenshot [region|full|all|window|last]
+  capture-screenrecording start/stop a region recording (wf-recorder)
+  capture-text            OCR a screen region to the clipboard (tesseract)
+  brightness-display [+N%|-N%|N%|up|down]
+  brightness-keyboard [up|down|cycle]
+  audio-output-volume [+N|-N|N%|up|down]
+  audio-output-switch     next output sink
+  audio-input-mute
+  media [play-pause|next|previous|play|pause|stop]
+  lock
+  night-toggle
+  theme-toggle
+  notifications-toggle
+  toggle-touchpad [on|off]        (no arg = toggle)
+  layout-toggle                   dwindle <-> master
+  window-close-all
+  cmd-terminal-cwd                cwd of the focused terminal
+  launch-browser
+  --check / --list
+
+Not implemented on purpose: omarchy-install-*, gaming, PAM/portal writes.
+EOF
+}
+
+verb_check() {
+  local rc=0
+  row() { # name state note [optional]
+    local s=$2 opt=${4:-}
+    [ "$opt" = optional ] && [ "$s" = missing ] && s="missing (optional)"
+    printf '  %-28s %-19s %s\n' "$1" "$s" "$3"
+    [ "$2" = missing ] && [ "$opt" != optional ] && rc=1
+    return 0
+  }
+  has() { command -v "$1" >/dev/null 2>&1 && echo present || echo missing; }
+  printf 'omarchy-shim backend check\n'
+  row dms           "$(has dms)"           "ipc target for menu/audio/brightness/media/lock/theme"
+  row hyprctl       "$(has hyprctl)"       "window + device + layout verbs"
+  row jq            "$(has jq)"            "JSON parsing in the shims"
+  row brightnessctl "$(has brightnessctl)" "keyboard backlight" optional
+  row wl-copy       "$(has wl-copy)"       "capture-text output" optional
+  row grim          "$(has grim)"          "capture-text screenshot" optional
+  row slurp         "$(has slurp)"         "region selection" optional
+  row tesseract     "$(has tesseract)"     "OCR (apt install tesseract-ocr)" optional
+  row wf-recorder   "$(has wf-recorder)"   "screen recording (apt install wf-recorder)" optional
+  local v n=0
+  for v in $VERBS; do [ -L "$HOME/.local/bin/omarchy-$v" ] && n=$((n + 1)); done
+  printf '\n  %-28s %s/%s\n' "verbs installed" "$n" "$(printf '%s\n' $VERBS | wc -l)"
+  [ "$n" -eq "$(printf '%s\n' $VERBS | wc -l)" ] || rc=1
+  return $rc
+}
+
+case "$VERB" in
+  help|-h|--help)        verb_help ;;
+  --check|check)         verb_check ;;
+  --list|list)           printf '%s\n' $VERBS ;;
+
+  menu)                  dms dankMenu toggle root ;;
+  menu-keybindings)      dms keybinds toggle hypr ;;
+  menu-power|menu-system) dms powermenu toggle ;;
+  menu-clipboard)        dms clipboard toggle ;;
+
+  capture-screenshot)    need dms dms; dms screenshot "${1:-region}" ;;
+  capture-screenrecording)
+    need wf-recorder wf-recorder
+    if pgrep -x wf-recorder >/dev/null 2>&1; then
+      pkill -INT -x wf-recorder && printf 'recording stopped\n'
+    else
+      need slurp slurp
+      out=$HOME/Videos/recording-$(date +%Y%m%d-%H%M%S).mp4
+      mkdir -p "$HOME/Videos"
+      region=$(slurp) || die "selection cancelled"
+      wf-recorder -g "$region" -f "$out" >/dev/null 2>&1 &
+      printf 'recording %s\n' "$out"
+    fi ;;
+  capture-text)
+    need grim grim; need slurp slurp; need tesseract tesseract-ocr; need wl-copy wl-clipboard
+    region=$(slurp) || die "selection cancelled"
+    grim -g "$region" - | tesseract stdin stdout 2>/dev/null | wl-copy
+    printf 'text copied to the clipboard\n' ;;
+
+  brightness-display)    read -r op val <<<"$(step "${1:-up}" 5)"; dms brightness "$op" "$val" ;;
+  brightness-keyboard)
+    need brightnessctl brightnessctl
+    dev=smc::kbd_backlight
+    brightnessctl -l 2>/dev/null | grep -q "$dev" || die "no keyboard backlight ($dev)"
+    case "${1:-cycle}" in
+      up|+)    brightnessctl -d "$dev" set 10%+ ;;
+      down|-)  brightnessctl -d "$dev" set 10%- ;;
+      cycle)   brightnessctl -d "$dev" set 10%+ ;;
+      *)       brightnessctl -d "$dev" set "$1" ;;
+    esac ;;
+
+  audio-output-volume)   read -r op val <<<"$(step "${1:-up}" 3)"; dms audio "$op" "$val" ;;
+  audio-output-switch)   dms audio cycleoutput ;;
+  audio-input-mute)      dms audio micmute ;;
+  media)
+    case "${1:-play-pause}" in
+      play-pause|toggle) dms mpris playPause ;;
+      play)              dms mpris play ;;
+      pause)             dms mpris pause ;;
+      next)              dms mpris next ;;
+      previous|prev)     dms mpris previous ;;
+      stop)              dms mpris stop ;;
+      *)                 die "usage: $SELF [play-pause|next|previous|play|pause|stop]" ;;
+    esac ;;
+
+  lock)                  dms lock lock ;;
+  night-toggle)          dms night toggle ;;
+  theme-toggle)          dms theme toggle ;;
+  notifications-toggle)  dms notifications toggleDoNotDisturb ;;
+
+  toggle-touchpad)
+    need hyprctl hyprland; need jq jq
+    dev=$(hyprctl devices -j | jq -r '.mice[]?.name' | grep -m1 -E 'bcm|touchpad|trackpad') ||
+      die "no touchpad found"
+    state=${XDG_RUNTIME_DIR:-/tmp}/debauchery-touchpad
+    cur=$(cat "$state" 2>/dev/null || echo on)
+    case "${1:-}" in
+      on)  want=on ;;
+      off) want=off ;;
+      '')  [ "$cur" = on ] && want=off || want=on ;;
+      *)   die "usage: $SELF [on|off]" ;;
+    esac
+    [ "$want" = on ] && en=1 || en=0
+    hyprctl keyword "device[$dev]:enabled" "$en" >/dev/null || die "hyprctl rejected device[$dev]"
+    printf '%s\n' "$want" > "$state" 2>/dev/null || true
+    printf 'touchpad %s (%s)\n' "$want" "$dev" ;;
+
+  layout-toggle)
+    need hyprctl hyprland
+    cur=$(hyprctl getoption general:layout | awk '/^str:/{print $2}')
+    [ "$cur" = master ] && want=dwindle || want=master
+    hyprctl keyword general:layout "$want" >/dev/null && printf 'layout: %s\n' "$want" ;;
+
+  window-close-all)
+    need hyprctl hyprland; need jq jq
+    n=0
+    while read -r addr; do
+      [ -n "$addr" ] || continue
+      hyprctl dispatch closewindow "address:$addr" >/dev/null && n=$((n + 1))
+    done < <(hyprctl clients -j | jq -r '.[].address')
+    printf 'closed %s window(s)\n' "$n" ;;
+
+  cmd-terminal-cwd)
+    need hyprctl hyprland; need jq jq
+    pid=$(hyprctl activewindow -j 2>/dev/null | jq -r '.pid // empty')
+    if [ -n "$pid" ] && [ -e "/proc/$pid/cwd" ]; then
+      readlink -f "/proc/$pid/cwd"
+    else
+      printf '%s\n' "$HOME"
+    fi ;;
+
+  launch-browser)
+    if command -v dms >/dev/null 2>&1 && dms ipc call defaultApp browser >/dev/null 2>&1; then
+      exit 0
+    fi
+    [ $# -gt 0 ] || die "no default browser configured; usage: $SELF <url>"
+    need xdg-open xdg-utils
+    xdg-open "$1" >/dev/null 2>&1 & ;;
+
+  *) die "no such verb (try: omarchy-shim --list)" ;;
+esac

@@ -66,6 +66,16 @@ Binaries: `/usr/bin/{Hyprland,hyprctl,hyprlock,hypridle,hyprpaper,distrobox,podm
 | `extra.conf` | sourced by the Physis adapter |
 | `physis-omarchy.conf` | deployed 2026-11-12 by the adapter; `SUPER+SHIFT P/G/O` |
 
+`binds.conf` has two profiles, both verified with `Hyprland --verify-config`:
+
+| Profile | Source | Switch |
+|---|---|---|
+| niri (default) | `configs/hypr/binds.conf` | `./install.sh binds niri` |
+| omarchy | `configs/binds/omarchy.conf` | `./install.sh binds omarchy` |
+
+The omarchy profile carries upstream Omarchy's key list; the seven deviations
+that could not be expressed on DMS/Hyprland are listed in `docs/CONTRACT.md`.
+
 `hyprland.conf` defines `$mainMod = SUPER` for sourced files that use the Omarchy
 convention — Hyprland substitutes an undefined variable with an empty string, so
 without it the adapter's binds silently became bare `P`/`H`/`O`.
@@ -116,6 +126,21 @@ should be ported to Lua eventually (see `plans/`).
   "Hyprland session not found" — no restart loop.
 - HUD rebound to `SUPER+SHIFT G` on air (`SUPER SHIFT H` is `movewindow, l`).
 
+## 6c. Omarchy interface layer (2026-11-14)
+
+- `~/.local/bin/omarchy-shim` + 23 `omarchy-*` symlinks (`omarchy-menu`,
+  `omarchy-capture-screenshot`, `omarchy-brightness-*`, `omarchy-audio-*`,
+  `omarchy-media`, `omarchy-lock`, `omarchy-theme-toggle`, …). Each verb maps to
+  a DMS IPC target or a Debian binary; `omarchy-shim --check` reports backends.
+- `debauchery/install.sh` 0.2.0: `install`, `update`, `doctor [--json]`,
+  `status`, `binds`, `set/get`, `uninstall`, whiptail menu. Modules are declared
+  once in `debauchery/modules.conf`.
+- `~/.config/debauchery/config` (profile, binds profile, box, disk gate).
+- `~/.config/debauchery/aliases.zsh` sourced from `~/.zshrc`: `ar`, `arb`, `aro`,
+  `ap`/`ad`/`apres`/`aa`, `pac`/`pacs`/`pacu`, `deb`/`debdoc`/`debst`, `om`/`omk`.
+- Verified 2026-11-14: `doctor` exit 0 (0 fails, 0 warns), both bind profiles
+  `config ok`, shims `23/23`, aliases resolve in a clean zsh.
+
 ## 7. Distrobox / podman
 
 - `distrobox 1.8.1.2`, `podman 5.4.2`, rootless (`podman info` → `Rootless: true`).
@@ -132,25 +157,48 @@ should be ported to Lua eventually (see `plans/`).
   below used it.)
 - Toolchain **installed and verified 2026-11-12**: `git`, `lazygit`, `btop`,
   `yazi`, `fzf`, `ripgrep`, `fd`, `bat`, `zoxide`, `nvim` — all present.
-  No AUR helper yet (`paru`/`yay` not installed).
+  AUR helpers **installed 2026-11-12**: `paru` (`paru-bin`) and `yay` (`yay-bin`)
+  at `/usr/bin/{paru,yay}`; `omarchy-arch --bootstrap-aur` reproduces it.
+- **Usage bridge deployed 2026-11-12** (`scripts/08-arch-bridge.sh`):
+  `~/.local/bin/{omarchy-arch,omarchy-pkg}`, `pacman`/`yay`/`paru` and
+  `omarchy-pkg-{add,drop,present,missing,install,remove,aur-add,aur-install}`
+  symlinks, map at `~/.config/omarchy-bridge/arch-debian.map` (39 entries).
+  Debian package preferred, container as fallback. The gateway pins the
+  container `PATH` and refuses re-entry (`OMARCHY_IN_BOX=1`), because distrobox
+  exports the host `~/.local/bin` into the box and the shims would otherwise
+  resolve to themselves.
 
 ## 8. Disk (after cleanup)
 
 - Freed from 1.4 GB → 23 GB free by removing rebuildable caches and the
   re-downloadable Samsung firmware tars. Full account in `notes/2026-11-12.md`.
+- Since then: **8 GB free (93 % used)** as of 2026-11-14 — the AUR toolchain and
+  the Omarchy layer cost ~15 GB. `DEBAUCHERY_MIN_DISK_G=5` is what stops a build
+  from filling the rootfs; the installer refuses below it.
 - Still large, deliberately untouched: `~/.local/share/physis-backups/pansa`
   (6.8 GB backup repo), `~/.ollama` (5.5 GB models), `~/.npm-global` (3.2 GB),
   `~/dev/physis-next/.git` (6.5 GB), `/var/lib/flatpak` (7.4 GB, needs root).
 
 ## 9. Pending / not done
 
-- [ ] Live Hyprland login test (DMS, overview, function row, media, lock).
-- [ ] Swap DMS niri plugins for Hyprland-aware ones.
-- [x] Make Hyprland the ly default (autologin set 2026-11-12; live verification still pending).
-- [x] Physis omarchy adapter deployment (2026-11-12: binaries, integration file,
-      unit, desktop entry; `--dry-run` bug fixed). See `PHYSIS-ADAPTER.md`.
-- [ ] Physis adapter live check in a Hyprland session (`SUPER+SHIFT P` / `G` / `O`,
-      socket at `$XDG_RUNTIME_DIR/physis-omarchy.sock`).
-- [ ] Optional: Omarchy Quickshell shell in its own session (see `PLAN.md`).
+- [x] Live Hyprland login test (DMS, overview, function row, media, lock) — the
+      session runs Hyprland 0.55.2 with `dms.service` active (re-verified 2026-11-14).
+- [ ] Swap DMS niri plugins for Hyprland-aware ones (`niriWorkspaceBar`,
+      `niriWindows` still installed; no errors in the journal, dead weight only).
+- [x] Make Hyprland the ly default (autologin set 2026-11-12; live).
+- [x] Physis omarchy adapter deployment (2026-11-12). See `PHYSIS-ADAPTER.md`.
+- [x] Physis adapter live check: unit `active`, socket
+      `$XDG_RUNTIME_DIR/physis-omarchy.sock` present, `inspect` answers
+      (2026-11-14 — this was listed as pending long after it passed).
+- [ ] Optional: Omarchy Quickshell shell in its own session (superseded by the
+      contract layer; see `docs/CONTRACT.md`).
 - [ ] Optional: Lua port of the Hyprland config.
-- [ ] Optional: root-tier cleanup (`apt-get clean`, journal vacuum, `flatpak uninstall --unused`).
+- [x] Arch↔Debian usage bridge (`omarchy-arch`, `omarchy-pkg*`, arch→deb map).
+- [x] Fleet SSH short-hop aliases (`~/.config/fleet/ssh-aliases.zsh`).
+- [x] AUR helpers in the container: `paru` + `yay` (2026-11-12).
+- [x] Omarchy interface layer (2026-11-14): `omarchy-shim` + 23 `omarchy-*` verbs,
+      omarchy bind profile, zsh aliases, `install.sh` (install/update/doctor).
+- [x] `impala` 0.9.0 is installed in the container (the remaining AUR tools —
+      `aether`, `herdr`, `tensaku`, `ttfx` — are still opt-in).
+- [ ] Optional: root-tier cleanup (`apt-get clean`, journal vacuum,
+      `flatpak uninstall --unused`) — ran 2026-11-12, gained ~0.

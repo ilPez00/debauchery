@@ -3,8 +3,12 @@
 > **Host:** air — MacBookAir7,2 (MacBook Air 2016), Intel Core i5-5350U, Intel HD Graphics 6000
 > **Base:** Debian 13.7 (trixie), kernel 7.2.12+deb13-amd64
 > **Desktop today:** niri 26.04 + DMS (Dux Modular Shell) 2.1.2db1, display manager ly
-> **Status:** proposal — nothing has been applied. Every phase is reversible.
-> **Last updated:** 2026-11-12
+> **Status:** Phases 0–5 applied on 2026-11-12. Phase 2 (theme import) and the
+> optional Omarchy-shell phases were superseded on 2026-11-14 by the contract
+> layer (`docs/CONTRACT.md`, v0.2.0): Omarchy's command names and keys, mapped
+> onto DMS + Debian, instead of a port kit.
+> **`STATE.md` is the only status document.** This file records the options.
+> **Last updated:** 2026-11-14
 
 ---
 
@@ -36,9 +40,15 @@ It is a plan, not a record of applied changes. Every system-level step is flagge
   (`/etc/pam.d`, `xdg-desktop-portal` masking, `wpaperd`) and are small,
   unofficial, and sometimes stale. Treat them as an **optional second session**,
   review-gated, never applied blind.
-- **Recommendation:** do Phase 0 → Phase 1 → Phase 2 first. Defer Phase 3–5 until
-  you decide you actually want the upstream Omarchy shell on a separate Hyprland
-  session; the Physis adapter only makes sense once that session exists.
+- **Recommendation (2026-11-12, acted on):** do Phase 0 → Phase 1 → Phase 2
+  first, defer Phase 3–5 until you decide you actually want the upstream Omarchy
+  shell on a separate Hyprland session.
+- **What was actually done instead (2026-11-14):** Phase 3 went ahead on its own
+  merits (a second, verified Hyprland session), the port kits were **not** used,
+  and Omarchy's interface was ported as a thin contract layer — command names and
+  keybinds over DMS IPC and Debian tools. See `docs/CONTRACT.md`. This keeps the
+  `[SYSTEM]` steps 65/72/74 (PAM, portal masking, `/etc/fastfetch`) out of the
+  picture entirely, which was the main stability objection to Options A and C.
 
 ---
 
@@ -436,7 +446,11 @@ sudo apt install -t trixie-backports hyprland hyprlock hypridle hyprpaper \
 
 Then add a ly session entry (`/usr/share/wayland-sessions/hyprland.desktop`)
 and verify that logging into Hyprland works **before** adding any Omarchy layer.
-Keep niri as the default session; choose Hyprland from ly's session list.
+
+> **Outcome (2026-11-12/13):** Hyprland was verified first, then made the ly
+> default (`auto_login_session = "hyprland"`, backup `/etc/ly/config.lua.bak-20261112`).
+> §8's original "keep niri the default" did not survive contact: the session is
+> now Hyprland, and niri remains installed and one logout away.
 
 Verify: `hyprctl clients`, `hyprctl monitors`, `hyprctl systeminfo`, and that
 `xdg-desktop-portal-hyprland` is **not** masked.
@@ -576,16 +590,24 @@ Then, in the Hyprland session: `SUPER+SHIFT+P` (inspect), `SUPER+SHIFT+H`
 
 ## 12. Open decisions
 
-1. **Do you want the literal Omarchy 4 Quickshell shell on a second (Hyprland)
-   session, or is DMS enough?** (Affects whether Phase 3–4 happen at all.)
-2. **If yes, Option A (Quickshell) or Option C (Waybar/Fuzzel + Physis adapter)?**
-3. **Run port-kit step 74 (portal mask / hyprlock PAM) or skip it?** Recommend
-   skip initially; add later only if per-workspace wallpapers are wanted.
-4. **Fix the adapter `--dry-run` bug now?** (small, safe, improves safety)
-5. **Distrobox image:** `quay.io/toolbx/arch-toolbox:latest` (toolbx, recommended)
-   vs `docker.io/library/archlinux:latest` (plain Arch)?
-6. **Subuid allocation for rootless podman** — OK to run the `usermod` (root) step?
-7. **Which Omarchy themes/wallpapers** to import into DMS first?
+Resolved (2026-11-14):
+
+| # | Question | Outcome |
+|---|---|---|
+| 1 | literal Omarchy Quickshell shell, or DMS? | DMS, plus an Omarchy *interface* layer (`docs/CONTRACT.md`) |
+| 2 | Option A (Quickshell) or C (Waybar/Fuzzel)? | neither — both are port kits; the contract layer supersedes them |
+| 3 | run port-kit step 74 (portal mask / hyprlock PAM)? | no, and it is now out of bounds (see `AGENTS.md`) |
+| 4 | fix the adapter `--dry-run` bug? | yes — fixed and proved 2026-11-12 |
+| 5 | Distrobox image? | `quay.io/archlinux/archlinux:latest` (schema1 killed the toolbx image) |
+| 6 | subuid allocation? | done; `podman` is rootless, `gio:100000:65536` |
+| 7 | which themes to import? | still open — cosmetic, deferred |
+
+Open:
+
+1. Which Omarchy themes/wallpapers to import into DMS first (Phase 2, cosmetic).
+2. Pin `DEBAUCHERY_BOX_IMAGE` to a digest for reproducibility? Currently a tag.
+3. Port the Hyprland config from hyprlang to Lua (Hyprland 0.55 is Lua-first, and
+   DMS's keybind editor only reads Lua) — not required for the contract layer.
 
 ---
 
@@ -597,7 +619,10 @@ Then, in the Hyprland session: `SUPER+SHIFT+P` (inspect), `SUPER+SHIFT+H`
 | 2026-11-12 | 1 | Arch Distrobox `arch-omarchy` created, toolchain installed | done |
 | 2026-11-12 | 3 | Hyprland 0.55.2 installed, config written, `--verify-config` ok | done; live login pending |
 | 2026-11-12 | 5 | Adapter `--dry-run` bug fixed; tests + `demo.sh --mock` pass; adapter deployed; `$mainMod` defined; HUD rebound to `SUPER+SHIFT G` | done; graphical smoke test pending |
+| 2026-11-12 | 1 (ext) | Arch↔Debian bridge (`omarchy-arch`, `omarchy-pkg*`, arch→deb map); AUR helpers `paru` + `yay` in the container; fleet SSH aliases | done |
 | 2026-11-03 | — | `omarchy-debian` dry-run (pre-existing) | phase `45-hardware.sh` failed; no changes |
+| 2026-11-14 | 6 | `debauchery` installer 0.2.0: `install.sh` (install/update/doctor/status/binds/set/uninstall), `modules.conf`, `docs/CONTRACT.md`, Omarchy shim layer (23 verbs), omarchy bind profile, zsh aliases | done — `doctor` green, both bind profiles verify, `shims --check` 23/23 |
+| 2026-11-14 | 6 | Hyprland login + Physis adapter smoke test re-verified | socket present, unit active (stale "pending" items closed) |
 
 ---
 

@@ -1,15 +1,34 @@
 # debauchery — air system repo
 
 Plans, scripts and configs for the **air** host (MacBook Air 2016, Debian 13):
-the niri → Hyprland migration, the Arch Distrobox, DMS under Hyprland, the
-Physis omarchy adapter, and the Omarchy integration options.
+the niri → Hyprland migration, the Arch Distrobox, an Omarchy-compatible
+interface layer on DMS, the Physis omarchy adapter, and one installer.
+
+## Install / operate
+
+```bash
+cd ~/debauchery
+./install.sh doctor            # read-only health report (green before you trust it)
+./install.sh                   # TUI menu on a TTY, `status` when piped
+./install.sh install --dry-run # print every command first
+./install.sh install --profile core|feel|arch|apple|all
+./install.sh binds omarchy     # Omarchy keybinds; `binds niri` restores
+./install.sh update            # git pull --ff-only + re-apply + doctor
+```
+
+Modules are declared once in `modules.conf`; flags, config keys and profiles are
+in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 
 ## Documents
 
 | Document | Contents |
 |---|---|
-| `STATE.md` | Verified system state: host, sessions, packages, configs, DMS, distrobox, disk, pending |
-| `PLAN.md` | Omarchy integration: options A–G verdicts, architecture, phases, risks, resources |
+| `STATE.md` | **the only status document**: verified host state, packages, configs, DMS, distrobox, interface layer, disk, pending |
+| `docs/CONTRACT.md` | what "feels like Omarchy" means here: verb mapping, keybind parity, deviations, stability budget |
+| `docs/INSTALL.md` | profiles, flags, config keys, what lands where, verification gates |
+| `docs/TROUBLESHOOTING.md` | measured symptoms and fixes (installer, container, keys, shell) |
+| `AGENTS.md` | non-interactive contract for agents: allowed commands, exit codes, never-do list |
+| `PLAN.md` | Omarchy integration: options A–G verdicts, architecture, phases, risks (options record, not status) |
 | `MIGRATION-niri-to-hyprland.md` | niri → Hyprland: behavior mapping, hotkey table, config translation, rollback |
 | `DISTROBOX.md` | Arch Distrobox: create/configure/use/AUR/GUI export/teardown |
 | `DMS-UNDER-HYPRLAND.md` | DMS under Hyprland: detection, keybinds, plugin swap, screenshots |
@@ -27,35 +46,60 @@ Physis omarchy adapter, and the Omarchy integration options.
 | `scripts/05-function-row.sh` | MacBook F1–F12 / fnmode guidance (1 = macOS-like, 2 = current) |
 | `scripts/06-physis-adapter.sh` | Physis adapter: test / dry-run / install / uninstall |
 | `scripts/07-rollback.sh` | Per-phase rollback commands |
+| `scripts/08-arch-bridge.sh` | Arch↔Debian bridge: `omarchy-arch` gateway, `pacman`/`yay`/`paru` shims, `omarchy-pkg-*` verbs, arch→deb map (`--check`, `--uninstall`) |
+| `scripts/09-ssh-aliases.sh` | Fleet SSH short hops → `~/.config/fleet/ssh-aliases.zsh`, sourced from `~/.zshrc` (`--check`, `--uninstall`) |
+| `scripts/10-omarchy-tools.sh` | Install the map's `arch:`/`aur:` Omarchy tools in the container and export the binaries to `~/.local/bin` (`--dry-run`, `--check`, `--export-only`) |
+| `scripts/11-omarchy-shims.sh` | Deploy `omarchy-shim` + the 23 `omarchy-*` verb symlinks (`--check`, `--uninstall`) |
 | `scripts/backup-desktop.sh` | Back up desktop configs before changes |
 | `scripts/create-arch-distrobox.sh` | Thin wrapper for the distrobox create step |
+
+`install.sh` wraps these into profiles; `modules.conf` is the list it reads
+(id, script, scope, profiles, check). The older scripts still run standalone.
 
 ## Directories
 
 | Path | What |
 |---|---|
+| `install.sh` | The entrypoint: install / update / doctor / status / binds / set / uninstall / TUI menu |
+| `modules.conf` | Module table: id, script, scope, profiles, check — the single source of order |
+| `VERSION` | Version printed by `install.sh --help`, `doctor`, `status` |
 | `configs/hypr/` | Live Hyprland config (`hyprland.conf`, `binds.conf`, `monitors.conf`, `autostart.conf`, `rules.conf`, `extra.conf`) |
+| `configs/binds/` | `omarchy.conf` — the Omarchy keybind profile (`install.sh binds omarchy`) |
+| `configs/bin/` | Executables deployed to `~/.local/bin` (`omarchy-arch`, `omarchy-pkg`, `omarchy-shim`) |
+| `configs/debauchery/` | `config.example` — the keys `install.sh` reads from `~/.config/debauchery/config` |
+| `configs/zsh/` | Shell snippets deployed to `~/.config/` (`ssh-aliases.zsh`, `debauchery.zsh`) |
+| `configs/arch-debian.map` | Arch package name → Debian/container target, read by `omarchy-pkg` |
+| `docs/` | `CONTRACT.md` (what "feels like Omarchy" means), `INSTALL.md`, `TROUBLESHOOTING.md` |
+| `AGENTS.md` | Non-interactive contract: allowed commands, exit codes, never-do list |
 | `notes/` | Status log (applied changes, disk cleanup account) |
 | `backups/` | Dated config backups (git-ignored) |
 
-## Status (2026-11-12)
+## Status (2026-11-14, v0.2.0)
 
-- Hyprland 0.55.2 installed; config verifies clean (`Hyprland --verify-config`).
-- ly auto-logins into Hyprland; niri still installed and selectable.
-- Arch Distrobox `arch-omarchy` running with the toolchain installed.
-- Disk reclaimed from 1.4 GB free to ~22 GB free.
-- Physis adapter **deployed** (Phase 5): binaries, `physis-omarchy.conf` sourced
-  from `extra.conf`, user unit, desktop entry. Installer `--dry-run` bug fixed;
-  `$mainMod` defined; HUD on `SUPER+SHIFT G` (H was `movewindow, l`).
-- DMS config untouched; the niri session remains a working fallback.
+`./install.sh doctor` → **exit 0, 0 fails, 0 warns**. `./install.sh status` is
+the executable truth; `STATE.md` is the narrative one.
+
+- Hyprland 0.55.2 installed and running (ly auto-login); config verifies clean.
+- DMS active as the shell; `xdg-desktop-portal-hyprland` **not** masked.
+- Physis adapter live: unit `active`, `$XDG_RUNTIME_DIR/physis-omarchy.sock`
+  present, HUD on `SUPER+SHIFT P/G/O`.
+- Arch container `arch-omarchy` (rootless podman via distrobox), `paru` + `yay`,
+  `impala` installed; the other AUR tools stay opt-in.
+- Omarchy interface layer: `omarchy-shim` + 23 verbs, `omarchy` keybind profile
+  (verified), zsh aliases (`ar`, `ap`, `om`, `deb`, …).
+- Both bind profiles pass `Hyprland --verify-config`; the deployed one is still
+  `niri`, so existing muscle memory is unchanged.
+- Disk: **8 GB free (93 % used)** — `DEBAUCHERY_MIN_DISK_G=5` gates AUR work.
+- niri remains installed and selectable as a fallback.
 
 ## Next
 
-1. Log into Hyprland and verify (see `DMS-UNDER-HYPRLAND.md` §7).
-2. In that session: `SUPER+SHIFT P/G/O` + `$XDG_RUNTIME_DIR/physis-omarchy.sock`
-   — the last unverified adapter item.
-3. Swap the DMS niri plugins if they error under Hyprland.
-4. Optional: Omarchy shell in its own session, Lua config port.
+1. Decide whether to switch keys: `./install.sh binds omarchy` (and back with
+   `binds niri`).
+2. Swap the DMS niri plugins for Hyprland-aware ones (no errors, dead weight).
+3. Optional: Omarchy browser/font/theme imports (Phase 2, cosmetic).
+4. Optional: Lua port of the Hyprland config (Hyprland 0.55 is Lua-first, and
+   DMS's keybind editor only reads Lua).
 
 ## Safety
 

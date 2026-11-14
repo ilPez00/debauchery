@@ -1,0 +1,144 @@
+#!/bin/bash
+# omarchy-arch — the Arch gateway for air.
+#
+# Debian owns the system (kernel, systemd, apt, Wayland, DMS). Arch-only tools
+# and AUR packages live in the arch-omarchy Distrobox; this is the single entry
+# point to it. Deployed by debauchery/scripts/08-arch-bridge.sh as
+# `omarchy-arch` plus the `pacman` / `yay` / `paru` shims.
+#
+# Not named `arch`: on Debian that is a coreutils binary, and shadowing it
+# would break scripts that ask for the machine architecture.
+#
+#   omarchy-arch <cmd...>     run a command inside the container
+#   omarchy-arch              interactive shell inside the container
+#   omarchy-arch --status     host + container + gateway state
+#   omarchy-arch --bootstrap-aur
+#                             install base-devel/git, then paru (paru-bin) and
+#                             yay (yay-bin) in the container (opt-in, network)
+#   pacman <args>             pacman inside the container
+#   yay|paru <args>           AUR helper inside the container, if installed
+#
+# Env: OMARCHY_BOX (default arch-omarchy)
+set -uo pipefail
+
+BOX=${OMARCHY_BOX:-arch-omarchy}
+SELF=$(basename "$0")
+
+# distrobox exports the host PATH into the container, so these shims are on the
+# container's PATH too. Inside an Arch container, hand the call straight to the
+# real binary — otherwise an interactive `paru` there would try to enter a
+# container that is already the current environment.
+if [ -f /etc/pacman.conf ] && [ ! -f /etc/debian_version ]; then
+  case "$SELF" in
+    pacman|yay|paru) exec "/usr/bin/$SELF" "$@" ;;
+    *) printf 'omarchy-arch: already inside a container — nothing to enter\n' >&2; exit 127 ;;
+  esac
+fi
+
+# The container sees the host's ~/.local/bin in PATH (distrobox imports it), so
+# these very shims are visible inside the box. Pinning PATH there and refusing
+# re-entry keeps `paru` from resolving to the host gateway and recursing.
+BOX_PATH=/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
+
+[ "${OMARCHY_IN_BOX:-0}" = "1" ] && { printf 'omarchy-arch: refusing to re-enter %s from inside it\n' "$BOX" >&2; exit 127; }
+
+die() { printf 'omarchy-arch: %s\n' "$*" >&2; exit 1; }
+
+box_state() { podman inspect -f '{{.State.Running}}' "$BOX" 2>/dev/null || printf 'absent'; }
+
+require_box() {
+  command -v distrobox >/dev/null 2>&1 ||
+    die "distrobox is not installed — run: sudo apt install -y distrobox podman"
+  [ "$(box_state)" = absent ] &&
+    die "container '$BOX' does not exist — run: debauchery/scripts/03-arch-distrobox.sh"
+}
+
+in_box() {
+  require_box
+  distrobox enter "$BOX" --no-tty -- env OMARCHY_IN_BOX=1 PATH="$BOX_PATH" "$@"
+}
+
+box_has() { in_box bash -lc "command -v $1 >/dev/null 2>&1" >/dev/null 2>&1; }
+
+# Absolute container path, for binaries the host also shadows on PATH.
+box_bin() { in_box bash -lc "command -v $1" 2>/dev/null | tr -d '\r'; }
+
+usage() {
+  cat <<'EOF'
+omarchy-arch — run things in the arch-omarchy container
+
+  omarchy-arch <cmd...>       run <cmd> in the container
+  omarchy-arch                interactive shell
+  omarchy-arch --status       reachability report
+  omarchy-arch --os           the container's own OS (uname shows the host kernel)
+  omarchy-arch --bootstrap-aur   install paru + yay (needs network)
+
+aliases: pacman, yay, paru — same gateway
+env:     OMARCHY_BOX (default: arch-omarchy)
+EOF
+}
+
+status() {
+  . /etc/os-release 2>/dev/null || true
+  printf 'host       : %s (%s)\n' "$(uname -n)" "${PRETTY_NAME:-unknown}"
+  printf 'container  : %s\n' "$BOX"
+  printf 'podman     : %s\n' "$(command -v podman || echo missing)"
+  printf 'distrobox  : %s\n' "$(command -v distrobox || echo missing)"
+  case "$(box_state)" in
+    true)  printf 'state      : running\n' ;;
+    false) printf 'state      : stopped (starts on next use)\n' ;;
+    *)     printf 'state      : absent\n' ;;
+  esac
+  if [ "$(box_state)" = absent ] || ! command -v distrobox >/dev/null 2>&1; then
+    printf 'gateway    : unavailable (create the container first)\n'
+    return 1
+  fi
+  for t in pacman paru yay; do
+    printf '%-10s : %s\n' "$t" "$(box_has "$t" && echo present || echo absent)"
+  done
+}
+
+bootstrap_aur() {
+  printf 'omarchy-arch: installing base-devel + git in %s\n' "$BOX"
+  in_box sudo pacman -S --needed --noconfirm base-devel git || return 1
+
+  # paru-bin, not paru: the prebuilt package skips a full Rust build on this
+  # dual-core 2015 CPU. Same binary at /usr/bin/paru.
+  printf 'omarchy-arch: installing paru (paru-bin from the AUR)\n'
+  in_box bash -lc 'rm -rf /tmp/paru-bin && git clone -q https://aur.archlinux.org/paru-bin.git /tmp/paru-bin && cd /tmp/paru-bin && makepkg -si --noconfirm' || return 1
+  box_has paru || die "paru install finished but paru is not on PATH"
+  printf 'omarchy-arch: paru installed\n'
+
+  # yay-bin is the "alike": a second helper, so scripts that hardcode either
+  # name work. Installed through paru now that one AUR helper exists.
+  printf 'omarchy-arch: installing yay (yay-bin via paru)\n'
+  in_box paru -S --needed --noconfirm yay-bin || printf 'omarchy-arch: warning: yay-bin install failed (paru is still usable)\n' >&2
+
+  printf 'paru   : %s\n' "$(box_bin paru || echo missing)"
+  printf 'yay    : %s\n' "$(box_bin yay || echo missing)"
+}
+
+case "$SELF" in
+  pacman) in_box sudo pacman "$@" ;;
+
+  yay|paru)
+    bin=$(box_bin "$SELF")
+    [ -n "$bin" ] || die "$SELF is not installed in $BOX — run: omarchy-arch --bootstrap-aur"
+    in_box "$bin" "$@"
+    ;;
+
+  arch|omarchy-arch)
+    case "${1:-}" in
+      -h|--help) usage ;;
+      --status|status) status ;;
+      --os|os) require_box; in_box bash -lc '. /etc/os-release && printf "%s\n" "$PRETTY_NAME"' ;;
+      --bootstrap-aur|bootstrap-aur) bootstrap_aur ;;
+      "") require_box; exec distrobox enter "$BOX" ;;
+      *) in_box "$@" ;;
+    esac
+    ;;
+
+  *)
+    die "invoke as omarchy-arch, pacman, yay or paru (got '$SELF')"
+    ;;
+esac

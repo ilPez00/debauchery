@@ -1,0 +1,230 @@
+#!/bin/bash
+# omarchy-pkg — Omarchy's package verbs, retargeted at Debian.
+#
+# Upstream Omarchy's bin/omarchy-pkg-* assume pacman/yay. On air the base system
+# is Debian, so every verb keeps its upstream meaning but resolves each package
+# through ~/.config/omarchy-bridge/arch-debian.map:
+#
+#   add <pkg...>        install: the Debian package when one exists (apt),
+#                       otherwise the Arch package inside arch-omarchy —
+#                       official repo first, then the AUR (paru)
+#   drop <pkg...>       remove whatever is installed (apt or container), skip the rest
+#   present <pkg...>    exit 0 only if ALL are installed        (upstream name)
+#   missing <pkg...>    exit 0 if ANY is missing                (upstream name)
+#   install             fzf picker over Debian packages, then add
+#   remove              fzf picker over manually installed Debian packages, then drop
+#   aur-add <pkg...>    AUR install with paru inside the container
+#   aur-install         interactive paru package search
+#
+# Deployed by debauchery/scripts/08-arch-bridge.sh as `omarchy-pkg` plus the
+# omarchy-pkg-<verb> symlinks upstream scripts expect.
+#
+# Env:
+#   OMARCHY_PKG_MAP         map file (default ~/.config/omarchy-bridge/arch-debian.map)
+#   OMARCHY_PKG_DRY_RUN=1   print the plan, install/remove nothing
+#   OMARCHY_BOX             container name (default arch-omarchy)
+set -uo pipefail
+
+MAP=${OMARCHY_PKG_MAP:-$HOME/.config/omarchy-bridge/arch-debian.map}
+DRY=${OMARCHY_PKG_DRY_RUN:-0}
+SELF=$(basename "$0")
+
+say()  { printf '%s\n' "$*"; }
+warn() { printf 'omarchy-pkg: %s\n' "$*" >&2; }
+die()  { printf 'omarchy-pkg: %s\n' "$*" >&2; exit 1; }
+
+ARCH_GW=${OMARCHY_ARCH_GW:-$(command -v omarchy-arch 2>/dev/null || printf '%s/omarchy-arch' "$HOME/.local/bin")}
+[ -x "$ARCH_GW" ] || die "gateway missing: $ARCH_GW (run debauchery/scripts/08-arch-bridge.sh)"
+
+# Privileged operations must go through the `pacman` / `paru` shims: the gateway
+# run as `omarchy-arch` executes commands unprivileged, so `pacman -S` there
+# fails with "you cannot perform this operation unless you are root".
+SHIM_DIR=$(dirname "$ARCH_GW")
+PACMAN=${OMARCHY_PACMAN_SHIM:-$SHIM_DIR/pacman}
+PARU=${OMARCHY_PARU_SHIM:-$SHIM_DIR/paru}
+
+# --- verb resolution: omarchy-pkg-add, omarchy-pkg present, ... --------------
+VERB=""
+case "$SELF" in
+  omarchy-pkg)    VERB=${1:-help};    [ $# -gt 0 ] && shift ;;
+  omarchy-pkg-*)  VERB=${SELF#omarchy-pkg-} ;;
+  *)              VERB=${1:-help};    [ $# -gt 0 ] && shift ;;
+esac
+
+# --- package resolution ------------------------------------------------------
+# map_target prints: apt:<deb> | arch:<pkg> | aur:<pkg> | skip | auto:<arch-name>
+map_target() {
+  local name=$1 target=""
+  if [ -r "$MAP" ]; then
+    target=$(awk -v k="$name" '
+      /^[[:space:]]*#/ { next }
+      NF >= 2 && $1 == k { print $2; exit }
+    ' "$MAP")
+  fi
+  [ -n "$target" ] && printf '%s\n' "$target" || printf 'auto:%s\n' "$name"
+}
+
+apt_has() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'; }
+
+apt_known() {
+  if command -v apt-cache >/dev/null 2>&1; then
+    apt-cache show "$1" >/dev/null 2>&1 && return 0
+  fi
+  # apt-cache can be unhelpful with stale/partial lists; ask apt itself.
+  command -v apt-get >/dev/null 2>&1 &&
+    apt-get -s --no-download install "$1" >/dev/null 2>&1
+}
+
+# Ask the container's own pacman (the gateway pins its PATH, so this cannot
+# resolve to a host shim).
+box_has() { "$PACMAN" -Q "$1" >/dev/null 2>&1; }
+
+# Where a package lives inside the container: official repo, then the AUR.
+repo_has() { "$PACMAN" -Si "$1" >/dev/null 2>&1; }
+aur_has()  { "$PARU" -Si "$1" >/dev/null 2>&1; }
+
+# present_one <arch-name>
+present_one() {
+  local name=$1 target
+  target=$(map_target "$name")
+  case "$target" in
+    skip) return 1 ;;
+    apt:*) apt_has "${target#apt:}" ;;
+    arch:*|aur:*) box_has "${target#*:}" ;;
+    auto:*) apt_has "$name" && return 0; box_has "$name" ;;
+    *) return 1 ;;
+  esac
+}
+
+# --- install / remove primitives --------------------------------------------
+install_deb() {
+  local deb=$1
+  if [ "$DRY" = "1" ]; then say "dry-run: sudo apt-get install -y $deb   (from $deb)"; return 0; fi
+  say "→ Debian package: $deb"
+  sudo apt-get install -y "$deb" || { warn "apt-get install $deb failed"; return 1; }
+}
+
+install_arch() {
+  local pkg=$1
+  if [ "$DRY" = "1" ]; then say "dry-run: omarchy-arch pacman -S --needed --noconfirm $pkg"; return 0; fi
+  say "→ Arch package in container: $pkg"
+  "$PACMAN" -S --needed --noconfirm "$pkg" || { warn "pacman install $pkg failed"; return 1; }
+}
+
+install_aur() {
+  local pkg=$1
+  if [ "$DRY" = "1" ]; then say "dry-run: omarchy-arch paru -S --needed --noconfirm $pkg"; return 0; fi
+  say "→ AUR package in container: $pkg"
+  "$PARU" -S --needed --noconfirm "$pkg" || { warn "paru install $pkg failed"; return 1; }
+}
+
+remove_deb() { [ "$DRY" = "1" ] && { say "dry-run: sudo apt-get remove -y $1"; return 0; }; say "→ removing Debian package: $1"; sudo apt-get remove -y "$1"; }
+remove_arch() { [ "$DRY" = "1" ] && { say "dry-run: pacman -Rns --noconfirm $1"; return 0; }; say "→ removing container package: $1"; "$PACMAN" -Rns --noconfirm "$1"; }
+
+add_one() {
+  local name=$1 target
+  if present_one "$name"; then say "= $name already present"; return 0; fi
+  target=$(map_target "$name")
+  case "$target" in
+    apt:*)  install_deb "${target#apt:}" ;;
+    arch:*) install_arch "${target#arch:}" ;;
+    aur:*)  install_aur "${target#aur:}" ;;
+    skip)   warn "! $name has no Debian or container equivalent (map says: skip)"; return 1 ;;
+    auto:*)
+      # Resolution order: Debian (native tools belong on the host), then the
+      # Arch repos, then the AUR — so an unmapped AUR-only name still works.
+      if apt_known "$name"; then
+        install_deb "$name"
+      elif repo_has "$name"; then
+        install_arch "$name"
+      elif aur_has "$name"; then
+        say "→ $name is AUR-only"
+        install_aur "$name"
+      else
+        warn "! $name is not in Debian, the Arch repos or the AUR"
+        return 1
+      fi
+      ;;
+  esac
+}
+
+drop_one() {
+  local name=$1 target
+  target=$(map_target "$name")
+  case "$target" in
+    skip) warn "! $name was never installed by this bridge (map says: skip)"; return 1 ;;
+    apt:*)
+      local deb=${target#apt:}
+      apt_has "$deb" && { remove_deb "$deb"; return 0; } ;;
+    arch:*|aur:*)
+      local p=${target#*:}
+      box_has "$p" && { remove_arch "$p"; return 0; } ;;
+    auto:*)
+      apt_has "$name" && { remove_deb "$name"; return 0; }
+      box_has "$name" && { remove_arch "$name"; return 0; } ;;
+  esac
+  say "= $name is not installed, skipping"
+  return 0
+}
+
+# --- verbs -------------------------------------------------------------------
+verb_add()      { [ $# -gt 0 ] || die "usage: omarchy-pkg add <package...>"; local rc=0; for p in "$@"; do add_one "$p" || rc=1; done; return $rc; }
+verb_drop()     { [ $# -gt 0 ] || die "usage: omarchy-pkg drop <package...>"; local rc=0; for p in "$@"; do drop_one "$p" || rc=1; done; return $rc; }
+verb_present()  { [ $# -gt 0 ] || die "usage: omarchy-pkg present <package...>"; for p in "$@"; do present_one "$p" || return 1; done; return 0; }
+verb_missing()  { [ $# -gt 0 ] || die "usage: omarchy-pkg missing <package...>"; for p in "$@"; do present_one "$p" || return 0; done; return 1; }
+
+verb_install() {
+  command -v fzf >/dev/null 2>&1 || die "fzf is required for the picker"
+  command -v apt-cache >/dev/null 2>&1 || die "apt-cache is required for the picker"
+  local sel
+  sel=$(apt-cache pkgnames 2>/dev/null | sort -u | fzf --multi --prompt='install (Debian) > ') || return 0
+  [ -n "$sel" ] || return 0
+  local rc=0 p
+  while IFS= read -r p; do [ -n "$p" ] && { install_deb "$p" || rc=1; }; done <<< "$sel"
+  return $rc
+}
+
+verb_remove() {
+  command -v fzf >/dev/null 2>&1 || die "fzf is required for the picker"
+  local sel
+  sel=$(apt-mark showmanual 2>/dev/null | sort | fzf --multi --prompt='remove (Debian) > ') || return 0
+  [ -n "$sel" ] || return 0
+  local rc=0 p
+  while IFS= read -r p; do [ -n "$p" ] && { remove_deb "$p" || rc=1; }; done <<< "$sel"
+  return $rc
+}
+
+verb_aur_add()   { [ $# -gt 0 ] || die "usage: omarchy-pkg aur-add <package...>"; local rc=0; for p in "$@"; do install_aur "$p" || rc=1; done; return $rc; }
+verb_aur_install() { [ "$DRY" = "1" ] && { say "dry-run: paru -S"; return 0; }; "$PARU" -S; }
+
+usage() {
+  cat <<'EOF'
+omarchy-pkg — Omarchy's package verbs on a Debian base
+
+  add <pkg...>        Debian package if one exists, else the Arch package in
+                      the arch-omarchy container
+  drop <pkg...>       remove it wherever it was installed
+  present <pkg...>    exit 0 only if all are installed
+  missing <pkg...>    exit 0 if any is missing
+  install             fzf picker over Debian packages → add
+  remove              fzf picker over installed Debian packages → drop
+  aur-add <pkg...>    AUR install with paru in the container
+  aur-install         interactive paru search
+
+  map   : ~/.config/omarchy-bridge/arch-debian.map
+  dry   : OMARCHY_PKG_DRY_RUN=1 omarchy-pkg add fd
+EOF
+}
+
+case "$VERB" in
+  add) verb_add "$@" ;;
+  drop|remove-pkg) verb_drop "$@" ;;
+  present) verb_present "$@" ;;
+  missing) verb_missing "$@" ;;
+  install) verb_install ;;
+  remove) verb_remove ;;
+  aur-add) verb_aur_add "$@" ;;
+  aur-install) verb_aur_install ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 1 ;;
+esac

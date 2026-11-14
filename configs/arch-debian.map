@@ -1,0 +1,69 @@
+# arch-debian.map — how an Arch package name resolves on air.
+#
+# Deployed to ~/.config/omarchy-bridge/arch-debian.map by
+# debauchery/scripts/08-arch-bridge.sh and read by omarchy-pkg.
+#
+# Format (whitespace separated, # starts a comment):
+#   <arch-package>   <target>
+#
+# Target forms:
+#   apt:<debian-package>   install with apt on the Debian host (preferred)
+#   arch:<arch-package>    install with pacman inside the arch-omarchy container
+#   aur:<arch-package>     install from the AUR with paru inside the container
+#   skip                   no equivalent; report it instead of guessing
+#
+# A package with no line here is resolved "auto": tried as a Debian name first,
+# then as an Arch name in the container. Only add a line when the names differ
+# or the Arch package must stay in the container.
+
+# --- tools whose Debian name differs ---------------------------------------
+fd                    apt:fd-find
+# (omarchy scripts call `fd`; Debian installs the binary as `fdfind`)
+
+# --- same name in Debian trixie -------------------------------------------
+bat                   apt:bat
+ripgrep               apt:ripgrep
+fzf                   apt:fzf
+zoxide                apt:zoxide
+eza                   apt:eza
+neovim                apt:neovim
+git                   apt:git
+jq                    apt:jq
+curl                  apt:curl
+wl-clipboard          apt:wl-clipboard
+grim                  apt:grim
+slurp                 apt:slurp
+brightnessctl         apt:brightnessctl
+playerctl             apt:playerctl
+pavucontrol           apt:pavucontrol
+network-manager       apt:network-manager
+chafa                 apt:chafa
+fuzzel                apt:fuzzel
+rofi                  apt:rofi
+alacritty             apt:alacritty
+kitty                 apt:kitty
+qalc                  apt:qalc
+waybar                apt:waybar
+swaybg                apt:swaybg
+mako                  apt:mako-notifier
+hyprland              apt:hyprland
+hyprpaper             apt:hyprpaper
+hyprlock              apt:hyprlock
+hypridle              apt:hypridle
+
+# --- Arch-only: keep these in the container --------------------------------
+# The Omarchy project's own tooling is Arch/AUR-bound (PLAN.md §4.3).
+# Verified against the arch-omarchy container 2026-11-12: `impala` is in Arch's
+# `extra` repo (not the AUR), and `omarchy-nvim` is not published anywhere — it
+# ships inside the Omarchy repo itself.
+aether                aur:aether
+herdr                 aur:herdr
+impala                arch:impala
+tensaku               aur:tensaku
+ttfx                  aur:ttfx
+omarchy-nvim          skip
+
+# --- no equivalent worth building -----------------------------------------
+omacalc               skip
+omawrite              skip
+omacut                skip

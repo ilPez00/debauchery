@@ -1,0 +1,21 @@
+# ~/.config/debauchery/config — behaviour of the Debian→Omarchy layer.
+# Sourced by install.sh (plain KEY=value, no spaces around `=`).
+# Edit by hand or with: ./install.sh set DEBAUCHERY_BINDS=omarchy
+
+# Default profile used by `install` and `update`.
+DEBAUCHERY_PROFILE=core
+
+# Keybind profile: niri (vim H/J/K/L, current) or omarchy (Omarchy defaults).
+# Switch with: ./install.sh binds omarchy
+DEBAUCHERY_BINDS=niri
+
+# Arch container.
+DEBAUCHERY_BOX=arch-omarchy
+DEBAUCHERY_BOX_IMAGE=quay.io/archlinux/archlinux:latest
+
+# Refuse to run container/AUR modules below this much free space on / (GiB).
+# AUR builds on this dual-core Air have filled the rootfs once already.
+DEBAUCHERY_MIN_DISK_G=5
+
+# DMS theme name (cosmetic; `dms dank16` regenerates from a wallpaper).
+DEBAUCHERY_THEME=chadracula
