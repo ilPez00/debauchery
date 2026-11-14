@@ -26,6 +26,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 |---|---|
 | `STATE.md` | **the only status document**: verified host state, packages, configs, DMS, distrobox, interface layer, disk, pending |
 | `docs/CONTRACT.md` | what "feels like Omarchy" means here: verb mapping, keybind parity, deviations, stability budget |
+| `docs/LUA-PORT.md` | why `hyprland.lua` is the one missing piece: evidence, dispatcher mapping, the gate |
 | `docs/INSTALL.md` | profiles, flags, config keys, what lands where, verification gates |
 | `docs/TROUBLESHOOTING.md` | measured symptoms and fixes (installer, container, keys, shell) |
 | `AGENTS.md` | non-interactive contract for agents: allowed commands, exit codes, never-do list |
@@ -70,7 +71,8 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `configs/debauchery/` | `config.example` — the keys `install.sh` reads from `~/.config/debauchery/config` |
 | `configs/zsh/` | Shell snippets deployed to `~/.config/` (`ssh-aliases.zsh`, `debauchery.zsh`) |
 | `configs/arch-debian.map` | Arch package name → Debian/container target, read by `omarchy-pkg` |
-| `docs/` | `CONTRACT.md` (what "feels like Omarchy" means), `INSTALL.md`, `TROUBLESHOOTING.md` |
+| `configs/dms-plugins.lock.json` | the 15 DMS plugins pinned to exact commits (`dms plugins restore`) |
+| `docs/` | `CONTRACT.md`, `INSTALL.md`, `TROUBLESHOOTING.md`, `LUA-PORT.md` |
 | `AGENTS.md` | Non-interactive contract: allowed commands, exit codes, never-do list |
 | `notes/` | Status log (applied changes, disk cleanup account) |
 | `backups/` | Dated config backups (git-ignored) |

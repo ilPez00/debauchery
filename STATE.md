@@ -141,6 +141,17 @@ should be ported to Lua eventually (see `plans/`).
 - Verified 2026-11-14: `doctor` exit 0 (0 fails, 0 warns), both bind profiles
   `config ok`, shims `23/23`, aliases resolve in a clean zsh.
 
+## 6d. DMS plugins (2026-11-14)
+
+- 15 plugins installed, pinned by `configs/dms-plugins.lock.json`
+  (`dms plugins lock`, rebuilt with `dms plugins restore <lockfile>`).
+- Three niri-scoped plugins disabled under Hyprland — they query niri's IPC and
+  cannot work here: `animationRotate`, `niriWorkspaceBar`, `niriWindows`.
+  Re-enable with `dms ipc call plugins enable <id>`.
+- `dms ipc call plugins toggle <id>` is broken in this build
+  (`PLUGIN_TOGGLE_FAILED`); `enable` / `disable` work.
+- `hyprpm` unused: version-locked compiled plugins can take the compositor down.
+
 ## 7. Distrobox / podman
 
 - `distrobox 1.8.1.2`, `podman 5.4.2`, rootless (`podman info` → `Rootless: true`).
@@ -192,7 +203,11 @@ should be ported to Lua eventually (see `plans/`).
       (2026-11-14 — this was listed as pending long after it passed).
 - [ ] Optional: Omarchy Quickshell shell in its own session (superseded by the
       contract layer; see `docs/CONTRACT.md`).
-- [ ] Optional: Lua port of the Hyprland config.
+- [ ] Lua port of the Hyprland config — **required** for DMS's keybind
+      cheatsheet (`dms keybinds show hyprland` needs `hyprland.lua`). Evidence,
+      the full dispatcher mapping and the gate: `docs/LUA-PORT.md`. Four
+      dispatcher shapes are unverified and cannot be tested before the switch,
+      so it is deliberately its own task.
 - [x] Arch↔Debian usage bridge (`omarchy-arch`, `omarchy-pkg*`, arch→deb map).
 - [x] Fleet SSH short-hop aliases (`~/.config/fleet/ssh-aliases.zsh`).
 - [x] AUR helpers in the container: `paru` + `yay` (2026-11-12).

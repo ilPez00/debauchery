@@ -1,0 +1,68 @@
+{
+  "lockfileVersion": 1,
+  "plugins": {
+    "aiOverviewControl": {
+      "repo": "https://github.com/bernardopg/AiOverviewControl",
+      "commit": "4f7f13bd88e4bafef50343695924d91c531ee2de"
+    },
+    "animationRotate": {
+      "repo": "https://github.com/pnbarbeito/dms-niri-animation-rotate",
+      "commit": "2211ead4f561632b8eb8bfa0bb10f6faf1af95b0"
+    },
+    "cavaVisualizer": {
+      "repo": "https://github.com/ernestowgg/cava-visualizer",
+      "commit": "2d08bef95bc7cd170ad5730a27791c9af6d80a52"
+    },
+    "clipboardPlus": {
+      "repo": "https://github.com/Dadangdut33/dms-plugins",
+      "path": "ClipboardPlus",
+      "commit": "63fe6b87c497f1f7c2ea61432716817db1c5c3a4"
+    },
+    "cpuThermalIndicator": {
+      "repo": "https://github.com/zhtlancer/dms-cpu-thermal-indicator.git",
+      "commit": "261457e37c40c9560a4649c4bd92715c315683ad"
+    },
+    "dankKDEConnect": {
+      "repo": "https://github.com/duxlabs-dev/dux-plugins",
+      "path": "DankKDEConnect",
+      "commit": "be0b733a4036e0d1e5b3a1f11933569e61719be3"
+    },
+    "dankMenu": {
+      "repo": "https://github.com/sitolam/dms-plugins",
+      "path": "plugins/dankmenu",
+      "commit": "605dbd5f4fad8dc3a8becb19e219ec32000ce4b9"
+    },
+    "dankscale": {
+      "repo": "https://github.com/dwright134/dms-dankscale",
+      "commit": "4117385f371b730ce595be182eaa365f77bf8c50"
+    },
+    "desktopCommand": {
+      "repo": "https://github.com/yayuuu/desktopCommand",
+      "commit": "a2e663ee031918ea01e2e65cf88aa3ded85a53f8"
+    },
+    "displayModes": {
+      "repo": "https://github.com/godsGived/dms-display-modes",
+      "commit": "39cda93a10c87a45c1f0fd6e54423ae3d8113661"
+    },
+    "enderPulse": {
+      "repo": "https://github.com/iquantecho/enderpulse",
+      "commit": "0fa18df25c3b73119bc39e845c7b982286461903"
+    },
+    "networkIndicator": {
+      "repo": "https://github.com/gemb0-0/Network-Indicator.git",
+      "commit": "7f5062350532495063e6c281e947d90cfecbeb37"
+    },
+    "niriWindows": {
+      "repo": "https://github.com/rochacbruno/DankNiriWindows",
+      "commit": "411d5ee9f7707029f4c12c824ec3b24ca6756a0d"
+    },
+    "niriWorkspaceBar": {
+      "repo": "https://github.com/robwilkerson/dms-niri-workspace-bar",
+      "commit": "2c4218cff656ab756119e99cdba45420fa188b89"
+    },
+    "storageMonitor": {
+      "repo": "https://github.com/YoungJurry/dms-storage-monitor",
+      "commit": "80ab9b889fc6520ffb9d363b75053c5345f2deb3"
+    }
+  }
+}

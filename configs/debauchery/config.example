@@ -11,7 +11,9 @@ DEBAUCHERY_BINDS=niri
 
 # Arch container.
 DEBAUCHERY_BOX=arch-omarchy
-DEBAUCHERY_BOX_IMAGE=quay.io/archlinux/archlinux:latest
+# Pinned by digest: the tag moves, a digest does not. This is what was pulled
+# and verified on 2026-11-14.
+DEBAUCHERY_BOX_IMAGE=quay.io/archlinux/archlinux@sha256:776e17b435897e700cc3372febbea93aab397a30ce91a823cb9e444acc9c18b6
 
 # Refuse to run container/AUR modules below this much free space on / (GiB).
 # AUR builds on this dual-core Air have filled the rootfs once already.
