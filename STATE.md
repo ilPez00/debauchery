@@ -145,7 +145,7 @@ should be ported to Lua eventually (see `plans/`).
 
 ## 6d. DMS plugins (2026-11-14)
 
-- 16 plugins installed, pinned by `configs/dms-plugins.lock.json`
+- 15 plugins installed (`enderPulse` dropped, see below), pinned by `configs/dms-plugins.lock.json`
   (`dms plugins lock`, rebuilt with `dms plugins restore <lockfile>` — the repo
   copy works as the argument, no need to touch `~/.config`).
 - Registry install proven 2026-11-14: `dms plugins install batteryPlus`
@@ -159,8 +159,19 @@ should be ported to Lua eventually (see `plans/`).
 - `dms ipc call plugins toggle <id>` is broken in this build
   (`PLUGIN_TOGGLE_FAILED`); `enable` / `disable` work.
 - `hyprpm` unused: version-locked compiled plugins can take the compositor down.
-- Loaded/unloaded after the work: 9 loaded (incl. `batteryPlus`), 7 unloaded —
-  4 by the user's own choice, 3 niri-scoped disabled here.
+- `omarchy-plugin-{list,search,install,remove,update,lock}` (2026-11-14):
+  install does install → restart `dms.service` → wait for IPC → `enable` →
+  print state; remove is the inverse and restarts too, so `plugin-list` tells
+  the truth. Round-trip tested on `dankCalendarAgenda` (installed, loaded,
+  removed, gone from disk and from the list). 29 shim verbs now.
+- `./install.sh config` is the settings TUI (keymap, theme mode, night filter,
+  layout, plugin checklist, touchpad, edit config); with no TTY it prints the
+  state and the command for each setting instead.
+- `enderPulse` removed 2026-11-14: its upstream repo answers 401, so
+  `dms plugins update` failed for everyone. 15 plugins pinned now.
+  `dms plugins update` moved `desktopCommand` and `niriWindows` to new commits.
+- Loaded/unloaded after the work: 9 loaded (incl. `batteryPlus`), 6 unloaded —
+  3 by the user's own choice, 3 niri-scoped disabled here.
 
 ## 7. Distrobox / podman
 

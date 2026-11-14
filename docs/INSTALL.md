@@ -16,6 +16,7 @@ One entrypoint, twelve modules, every step reversible.
 git clone https://github.com/ilPez00/debauchery.git ~/debauchery
 cd ~/debauchery
 ./install.sh doctor                  # read-only: what is present, what drifted
+./install.sh config                  # keymap, look, night filter, plugins (TUI)
 ./install.sh install --dry-run       # prints every command first
 ./install.sh install                 # the default profile: core
 ./install.sh doctor                  # must be green before you trust it
@@ -54,6 +55,7 @@ logs to `~/.local/state/debauchery/install-<timestamp>.log`.
 
 ```bash
 ./install.sh status                # modules + repo-vs-deployed drift
+./install.sh config                  # settings; prints state + commands when piped
 ./install.sh doctor [--json]       # read-only health report
 ./install.sh install [flags]       # apply modules
 ./install.sh update                # git pull --ff-only, re-apply, doctor

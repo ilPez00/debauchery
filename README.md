@@ -10,6 +10,7 @@ interface layer on DMS, the Physis omarchy adapter, and one installer.
 cd ~/debauchery
 ./install.sh doctor            # read-only health report (green before you trust it)
 ./install.sh selftest          # read-only smoke test + the keys worth pressing
+./install.sh config            # settings: keymap, look, night filter, plugins
 ./install.sh                   # TUI menu on a TTY, `status` when piped
 ./install.sh install --dry-run # print every command first
 ./install.sh install --profile core|feel|arch|apple|all
@@ -71,7 +72,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `configs/debauchery/` | `config.example` — the keys `install.sh` reads from `~/.config/debauchery/config` |
 | `configs/zsh/` | Shell snippets deployed to `~/.config/` (`ssh-aliases.zsh`, `debauchery.zsh`) |
 | `configs/arch-debian.map` | Arch package name → Debian/container target, read by `omarchy-pkg` |
-| `configs/dms-plugins.lock.json` | the 15 DMS plugins pinned to exact commits (`dms plugins restore`) |
+| `configs/dms-plugins.lock.json` | the 15 DMS plugins pinned to exact commits (`dms plugins restore`, or `omarchy-plugin-lock` to refresh) |
 | `docs/` | `CONTRACT.md`, `INSTALL.md`, `TROUBLESHOOTING.md`, `LUA-PORT.md` |
 | `AGENTS.md` | Non-interactive contract: allowed commands, exit codes, never-do list |
 | `notes/` | Status log (applied changes, disk cleanup account) |

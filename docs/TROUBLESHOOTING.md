@@ -31,6 +31,10 @@ Omarchy has no plugin store; DMS does, and it is the one this layer uses.
 | install by id | `dms plugins install <id>` | from the registry, e.g. `batteryPlus` (the manifest's `id`, not the file name) |
 | update | `dms plugins update <id>\|--all` | also drops the old checkouts; `dms plugins list` marks the ones with `(update available)` |
 
+`omarchy-plugin-install <id>` does all of this for you (install, restart, wait
+for IPC, enable, print the state), and `omarchy-plugin-remove` is its inverse.
+The trap below is why those verbs exist.
+
 **A newly installed plugin is invisible until DMS restarts.** Measured
 2026-11-14 with `batteryPlus`: `dms plugins install batteryPlus` reported
 success and the files were on disk in `~/.config/dms/plugins/batteryPlus`, but

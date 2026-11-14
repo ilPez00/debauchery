@@ -26,6 +26,19 @@ die()  { printf 'omarchy-%s: %s\n' "$VERB" "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is missing — sudo apt install $2"; }
 
 dms()  { need dms dms; dms ipc call "$@"; }
+
+# The shell scans plugins only at startup: install and remove both need a
+# restart before `plugin-list` tells the truth. Wait for IPC to answer.
+dms_restart() {
+  printf 'restarting dms.service (the shell only scans plugins at startup)\n'
+  systemctl --user restart dms.service || die "could not restart dms.service"
+  local i
+  for i in $(seq 1 20); do
+    command dms ipc call plugin-scan list >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  die "dms did not answer after the restart"
+}
 hypr() { need hyprctl hyprland; hyprctl "$@"; }
 
 # The deployed verb names. scripts/11-omarchy-shims.sh reads this list back with
@@ -36,7 +49,9 @@ brightness-display brightness-keyboard
 audio-output-volume audio-output-switch audio-input-mute
 media lock night-toggle theme-toggle notifications-toggle
 toggle-touchpad layout-toggle window-close-all cmd-terminal-cwd
-launch-browser"
+launch-browser
+plugin-list plugin-install plugin-remove plugin-update plugin-lock
+plugin-search"
 
 # step <arg> -> "<op> <value>" for the dms brightness/audio verbs. The dms
 # increment/decrement verbs take a bare number; set takes a percentage.
@@ -78,6 +93,12 @@ omarchy-shim — Omarchy verbs on DMS + Debian (Tier 1)
   window-close-all
   cmd-terminal-cwd                cwd of the focused terminal
   launch-browser
+  plugin-list                     installed plugins: id / state / kind / name
+  plugin-search <term>            search the store listing
+  plugin-install <id>             install, restart dms, enable, verify
+  plugin-remove <id>              disable, then uninstall
+  plugin-update [<id>|--all]      no arg = all
+  plugin-lock                     pin every plugin into the repo lockfile
   --check / --list
 
 Not implemented on purpose: omarchy-install-*, gaming, PAM/portal writes.
@@ -219,6 +240,71 @@ case "$VERB" in
     [ $# -gt 0 ] || die "no default browser configured; usage: $SELF <url>"
     need xdg-open xdg-utils
     xdg-open "$1" >/dev/null 2>&1 & ;;
+
+  # --- DMS plugin store ------------------------------------------------------
+  # Omarchy has no plugin store; DMS does. These verbs are the store with the
+  # two traps handled: a new plugin is invisible until dms.service restarts,
+  # and it arrives disabled.
+  plugin-list)           need dms dms; command dms ipc call plugin-scan list ;;
+
+  plugin-search)
+    need dms dms
+    [ $# -gt 0 ] || die "usage: $SELF <term>"
+    reg=${DMS_PLUGIN_REGISTRY:-/tmp/dankdots-plugin-registry/official/plugins}
+    # The registry is a git checkout of manifest json files; `dms plugins list`
+    # fetches it. Searching the files is instant, offline, and shows the id that
+    # `install` actually takes (the id is not the file name).
+    [ -d "$reg" ] || command dms plugins list >/dev/null 2>&1 || die "registry not fetchable"
+    if [ -d "$reg" ] && command -v jq >/dev/null 2>&1; then
+      term=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+      jq -rs --arg t "$term" '
+        map(select((.id + " " + .name + " " + (.category // "") + " " + (.description // ""))
+                   | ascii_downcase | contains($t)))
+        | sort_by(.id) | .[]
+        | "\(.id)\t\(.name)\t\(.category // "?")\t\(.repo // "")"' "$reg"/*.json
+    else
+      command dms plugins list 2>/dev/null | awk -v t="$1" '
+        BEGIN { RS=""; IGNORECASE=1 } index(tolower($0), tolower(t)) { print $0 "\n" }'
+    fi ;;
+
+  plugin-install)
+    need dms dms
+    [ $# -gt 0 ] || die "usage: $SELF <plugin-id>"
+    id=$1
+    command dms plugins install "$id" || die "install failed: $id"
+    dms_restart
+    command dms ipc call plugins enable "$id" || die "$id installed but enable failed"
+    printf 'plugin %s: %s\n' "$id" "$(command dms ipc call plugins status "$id" 2>&1)" ;;
+
+  plugin-remove)
+    need dms dms
+    [ $# -gt 0 ] || die "usage: $SELF <plugin-id>"
+    command dms ipc call plugins disable "$1" >/dev/null 2>&1 || true
+    out=$(command dms plugins uninstall "$1" 2>&1) || {
+      printf '%s\n' "$out" >&2
+      # Removing something already absent is not a failure.
+      case "$out" in *"not installed"*) printf 'plugin %s: not installed\n' "$1"; exit 0 ;; esac
+      die "uninstall failed: $1"
+    }
+    dms_restart
+    printf 'plugin %s: removed\n' "$1" ;;
+
+  plugin-update)
+    need dms dms
+    [ $# -gt 0 ] || set -- --all
+    command dms plugins update "$@" ;;
+
+  plugin-lock)
+    need dms dms
+    repo=${DEBAUCHERY_REPO:-$HOME/debauchery}
+    if [ -d "$repo/configs" ]; then
+      command dms plugins lock -o "$repo/configs/dms-plugins.lock.json" || die "lock failed"
+      printf 'pinned %s plugins -> %s\n' \
+        "$(jq '.plugins | length' "$repo/configs/dms-plugins.lock.json" 2>/dev/null || echo '?')" \
+        "$repo/configs/dms-plugins.lock.json"
+    else
+      command dms plugins lock || die "lock failed"
+    fi ;;
 
   *) die "no such verb (try: omarchy-shim --list)" ;;
 esac

@@ -4,6 +4,7 @@
 #   ./install.sh                     menu (TTY) / status (piped)
 #   ./install.sh doctor [--json]     read-only health report      (agent-safe)
 #   ./install.sh status              what is installed and what drifted
+#   ./install.sh config              settings: keymap, look, plugins (TUI; prints when piped)
 #   ./install.sh selftest            read-only smoke test + the manual key list
 #   ./install.sh install [--profile core|feel|arch|apple|all]
 #                        [--only id,id] [--yes] [--dry-run] [--no-sudo]
@@ -538,7 +539,9 @@ cmd_selftest() {
   for v in $("$HOME/.local/bin/omarchy-shim" --list 2>/dev/null); do
     [ -L "$HOME/.local/bin/omarchy-$v" ] || missing="$missing $v"
   done
-  if [ -z "$missing" ]; then log "  ${c_pass}ok${c_off}    23 verbs linked"; else
+  if [ -z "$missing" ]; then
+    log "  ${c_pass}ok${c_off}    $("$HOME/.local/bin/omarchy-shim" --list 2>/dev/null | wc -l) verbs linked"
+  else
     warn "  ${c_fail}FAIL${c_off}  verbs not linked:$missing"; fails=$((fails + 1)); fi
 
   log ""
@@ -601,6 +604,101 @@ EOF
   return 0
 }
 
+cmd_config() {
+  load_config
+  local binds=${DEBAUCHERY_BINDS:-niri}
+
+  # Marks are for the human reading this, not for a machine: every line is the
+  # command that changes the thing.
+  config_show() {
+    local mode night layout pl
+    mode=$(dms ipc call theme getMode 2>/dev/null || echo "?")
+    night=$(dms ipc call night status 2>/dev/null | head -1 | sed 's/^[^:]*: *//' || echo "?")
+    layout=$(hyprctl getoption general:layout 2>/dev/null | awk '/^str:/{print $2}')
+    pl=$(dms ipc call plugin-scan list 2>/dev/null | tail -n +2 \
+      | awk -F'\t' '$2=="loaded"{l++} END{printf "%d loaded", l+0}')
+    printf '  %-12s %-14s %s\n' \
+      keybinds     "$binds"        "./install.sh binds niri|omarchy" \
+      appearance   "$mode"         "dms ipc call theme dark|light|toggle" \
+      "night"      "${night:-?}"   "dms ipc call night enable|disable|toggle" \
+      layout       "${layout:-?}"  "omarchy-layout-toggle" \
+      plugins      "$pl"           "omarchy-plugin-list" \
+      config       ""              "$CONFIG"
+  }
+
+  if ! command -v whiptail >/dev/null 2>&1 || [ ! -t 0 ]; then
+    log "settings (no TTY: showing state and the command for each)"
+    config_show
+    return 0
+  fi
+
+  local choice
+  while true; do
+    choice=$(whiptail --title "debauchery $DBVERSION — settings" --menu \
+      "Pick a section. Nothing security-relevant lives here." 22 78 12 \
+      "1" "Keybind profile  ($binds)" \
+      "2" "Appearance       (dark / light)" \
+      "3" "Night filter     (blue light)" \
+      "4" "Window layout    (dwindle / master)" \
+      "5" "Plugins          (on / off)" \
+      "6" "Touchpad         (on / off)" \
+      "7" "Edit the config file" \
+      "8" "Show every setting as a command" \
+      "q" "Done" 3>&1 1>&2 2>&3) || return 0
+    case "$choice" in
+      1) local p
+         p=$(whiptail --title "keybinds" --menu "Which keymap?" 15 60 4 \
+           niri "your own keys (153 binds)" omarchy "Omarchy's key list (139 binds)" \
+           3>&1 1>&2 2>&3) || continue
+         cmd_binds "$p" && binds=$p ;;
+      2) local m
+         m=$(whiptail --title "appearance" --menu "Theme mode" 14 50 3 \
+           dark "" light "" toggle "" 3>&1 1>&2 2>&3) || continue
+         dms ipc call theme "$m" && log "theme: $m" ;;
+      3) local n
+         n=$(whiptail --title "night filter" --menu "Blue light filter" 14 50 3 \
+           toggle "" enable "" disable "" 3>&1 1>&2 2>&3) || continue
+         dms ipc call night "$n" && log "night: $n" ;;
+      4) "$HOME/.local/bin/omarchy-layout-toggle" || cmd_install --only hyprland ;;
+      5) config_plugins ;;
+      6) local t
+         t=$(whiptail --title "touchpad" --menu "Trackpad" 14 50 3 \
+           toggle "" on "" off "" 3>&1 1>&2 2>&3) || continue
+         "$HOME/.local/bin/omarchy-toggle-touchpad" "$t" ;;
+      7) "${EDITOR:-nano}" "$CONFIG" ;;
+      8) config_show ;;
+      q|"") return 0 ;;
+    esac
+  done
+}
+
+# Plugin on/off as a checklist. `dms ipc call plugins enable|disable` acts live,
+# no shell restart; a plugin that was just *installed* still needs one.
+config_plugins() {
+  local rows=() items=() picked on
+  mapfile -t rows < <(dms ipc call plugin-scan list 2>/dev/null | tail -n +2)
+  [ ${#rows[@]} -gt 0 ] || { warn "no plugins answered (is dms running?)"; return 1; }
+  local id state kind name
+  for r in "${rows[@]}"; do
+    IFS=$'\t' read -r id state kind name <<<"$r"
+    on=OFF; [ "$state" = loaded ] && on=ON
+    items+=("$id" "$kind · ${name:-$id}" "$on")
+  done
+  picked=$(whiptail --title "plugins" --checklist \
+    "Space toggles, Enter applies. Live change, no restart." 22 78 14 \
+    "${items[@]}" 3>&1 1>&2 2>&3) || return 0
+  picked=" $(tr -d '"' <<<"$picked") "
+  for r in "${rows[@]}"; do
+    IFS=$'\t' read -r id state kind name <<<"$r"
+    case "$picked" in
+      *" $id "*) verb=enable ;;
+      *)         verb=disable ;;
+    esac
+    dms ipc call plugins "$verb" "$id" >/dev/null 2>&1 || warn "plugin $id: $verb failed"
+  done
+  log "plugins: $(dms ipc call plugin-scan list 2>/dev/null | tail -n +2 | awk -F'\t' '$2=="loaded"{l++} END{print l+0}') loaded"
+}
+
 cmd_menu() {
   command -v whiptail >/dev/null 2>&1 || { cmd_status; return 0; }
   load_config
@@ -648,6 +746,7 @@ case "${ACTION:-}" in
   update)    cmd_update ;;
   doctor)    cmd_doctor ;;
   selftest)  cmd_selftest ;;
+  config)    cmd_config ;;
   status)    cmd_status ;;
   binds)     cmd_binds "${REST[0]:-}" ;;
   uninstall) cmd_uninstall "${REST[0]:-}" ;;

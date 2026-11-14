@@ -49,16 +49,32 @@ as `~/.local/bin/omarchy-<verb>`. `omarchy-shim --check` prints every backend.
 | `omarchy-cmd-terminal-cwd` | focused window pid → `/proc/<pid>/cwd` |
 | `omarchy-launch-browser [url]` | `dms ipc call defaultApp browser`, else `xdg-open` |
 
+Plugin verbs: `omarchy-plugin-*` — see "Tier 2" below.
+
 Package verbs live in `configs/bin/omarchy-pkg` (see `DISTROBOX.md` §12):
 `add`, `drop`, `present`, `missing`, `install`, `remove`, `aur-add`,
 `aur-install`, plus `pacman` / `yay` / `paru` shims into `arch-omarchy`.
 
-## Tier 2 — skipped on purpose
+## Tier 2 — the plugin store, and what is still skipped
 
-`omarchy-install-*`, `omarchy-remove-*`, gaming, dictation, webapp launchers,
-`linux-omarchy`, PAM and portal steps. They assume Arch, systemd system units and
-Omarchy's own shell; none of them are needed for the interface, and several are
-the exact steps that break a working session.
+Omarchy has no plugin store, so there is no upstream verb to copy. These are
+this layer's own names for DMS's store, and they exist because two things go
+wrong by hand: a newly installed plugin is invisible until the shell restarts,
+and it arrives disabled. Each verb below was exercised on air 2026-11-14.
+
+| Verb | What it does |
+|---|---|
+| `omarchy-plugin-list` | `dms ipc call plugin-scan list` — `id / state / kind / name`, no network |
+| `omarchy-plugin-search <term>` | searches the registry manifests (id, name, category, description); prints the **id** `install` takes |
+| `omarchy-plugin-install <id>` | `dms plugins install`, restart `dms.service`, wait for IPC, `plugins enable`, print the state |
+| `omarchy-plugin-remove <id>` | disable, uninstall, restart; removing something already absent exits 0 |
+| `omarchy-plugin-update [<id>\|--all]` | no argument means `--all` |
+| `omarchy-plugin-lock` | pins every plugin into `configs/dms-plugins.lock.json` |
+
+Still skipped on purpose: `omarchy-install-*`, `omarchy-remove-*`, gaming,
+dictation, webapp launchers, `linux-omarchy`, PAM and portal steps. They assume
+Arch, systemd system units and Omarchy's own shell; none of them are needed for
+the interface, and several are the exact steps that break a working session.
 
 ## Keybind parity
 
