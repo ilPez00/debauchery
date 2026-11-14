@@ -105,6 +105,7 @@ codes, log path, and the operations that are out of bounds.
 | syntax | `for f in install.sh scripts/*.sh configs/bin/*; do bash -n "$f"; done` | silent |
 | zsh | `zsh -n configs/zsh/*.zsh` | silent |
 | health | `./install.sh doctor` | exit 0, `fails: 0` |
+| smoke | `./install.sh selftest` | every automatic check `ok`, then the key list |
 | binds, both profiles | `./install.sh binds omarchy && ./install.sh binds niri` | `config ok` twice |
 | bridge | `./scripts/08-arch-bridge.sh --check` | no `FAILED` |
 | shims | `./scripts/11-omarchy-shims.sh --check` | `23/23`, exit 0 |

@@ -15,6 +15,30 @@ installed* (WARN), and the JSON form is what an agent should read.
 | `git pull refused` | local commits diverged from `origin` | resolve by hand; the installer never forces |
 | Module ran but `doctor` still WARNs | check is stricter than the script (e.g. `tools` needs `impala`) | run `install --only <id>` and read its output |
 
+## Plugins (DMS store)
+
+Omarchy has no plugin store; DMS does, and it is the one this layer uses.
+
+| Task | Command | Measured |
+|---|---|---|
+| the store | `dms plugins browse` | reads the registry (a git fetch, ~10k objects, slow the first time) |
+| what is installed | `dms ipc call plugins list` | `id [loaded\|disabled]`, 15 plugins, 11 loaded |
+| turn one on/off live | `dms ipc call plugins enable\|disable <id>` | works, no shell restart |
+| `toggle` | `dms ipc call plugins toggle <id>` | **always** `PLUGIN_TOGGLE_FAILED`, even on a loaded plugin — use enable/disable |
+| pin everything | `dms plugins lock` | writes `~/.config/dms/plugins.lock.json` (repo + commit per plugin) |
+| rebuild exactly | `dms plugins restore` | re-installs the pinned commits |
+| install by id | `dms plugins install <id>` | from the registry |
+| update | `dms plugins update <id>\|--all` | also drops the old checkouts |
+
+`dms plugins lock` + a copy of `~/.config/dms/plugins.lock.json` in this repo is
+what makes the shell reproducible after a reinstall — the same role the
+`modules.conf` plays for the rest of the layer.
+
+Hyprland's own plugin manager is separate: `hyprpm list` is empty and that is
+deliberate. `hyprpm` plugins are compiled against the exact Hyprland commit and a
+bad one takes the whole compositor with it — the opposite of the stability
+budget in `docs/CONTRACT.md`. Use a DMS plugin first.
+
 ## Hotkeys stopped working
 
 Symptom: the keyboard is fine, typing works, but `SUPER+…` does nothing.

@@ -9,6 +9,7 @@ is the whole contract; follow it instead of exploring.
 cd ~/debauchery
 ./install.sh doctor --json     # machine-readable, read-only, exit 0 healthy
 ./install.sh status            # module table + drift, human
+./install.sh selftest          # read-only smoke test + manual key list
 ```
 
 `doctor` exit codes: `0` no hard failures, `2` something installed is broken,
@@ -27,6 +28,7 @@ Never infer health from a single command's exit code; `doctor` is the gate.
 |---|---|
 | `./install.sh doctor [--json]` | read-only |
 | `./install.sh status` | read-only |
+| `./install.sh selftest` | read-only; never toggles a key or a plugin |
 | `./install.sh install --dry-run` | prints commands, changes nothing |
 | `./install.sh install --profile core` | user-scope: bridge, aliases, zsh |
 | `./install.sh install --only <ids>` | user-scope subset |

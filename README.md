@@ -9,6 +9,7 @@ interface layer on DMS, the Physis omarchy adapter, and one installer.
 ```bash
 cd ~/debauchery
 ./install.sh doctor            # read-only health report (green before you trust it)
+./install.sh selftest          # read-only smoke test + the keys worth pressing
 ./install.sh                   # TUI menu on a TTY, `status` when piped
 ./install.sh install --dry-run # print every command first
 ./install.sh install --profile core|feel|arch|apple|all

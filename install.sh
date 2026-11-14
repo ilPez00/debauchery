@@ -4,6 +4,7 @@
 #   ./install.sh                     menu (TTY) / status (piped)
 #   ./install.sh doctor [--json]     read-only health report      (agent-safe)
 #   ./install.sh status              what is installed and what drifted
+#   ./install.sh selftest            read-only smoke test + the manual key list
 #   ./install.sh install [--profile core|feel|arch|apple|all]
 #                        [--only id,id] [--yes] [--dry-run] [--no-sudo]
 #   ./install.sh update              git pull --ff-only, re-apply, doctor
@@ -520,6 +521,74 @@ cmd_uninstall() {
   return 0
 }
 
+cmd_selftest() {
+  local fails=0
+  step() { # label command...
+    local label=$1; shift
+    if "$@" >/dev/null 2>&1; then log "  ${c_pass}ok${c_off}    $label"
+    else warn "  ${c_fail}FAIL${c_off}  $label"; fails=$((fails + 1)); fi
+  }
+  have() { bash -c "$1" >/dev/null 2>&1; }
+
+  log "selftest — read-only. Nothing is toggled, no window is opened."
+  hr
+  log "shim layer"
+  step "omarchy-shim backends" "$HOME/.local/bin/omarchy-shim" --check
+  local v missing=""
+  for v in $("$HOME/.local/bin/omarchy-shim" --list 2>/dev/null); do
+    [ -L "$HOME/.local/bin/omarchy-$v" ] || missing="$missing $v"
+  done
+  if [ -z "$missing" ]; then log "  ${c_pass}ok${c_off}    23 verbs linked"; else
+    warn "  ${c_fail}FAIL${c_off}  verbs not linked:$missing"; fails=$((fails + 1)); fi
+
+  log ""
+  log "shell"
+  step "dms ipc answers" dms ipc call plugins list
+  step "dms plugins registry (network)" bash -c 'dms plugins list 2>/dev/null | grep -q "Installed Plugins"'
+  local n_binds=0 n_pl=0 n_off=0
+  [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && n_binds=$(hyprctl binds -j 2>/dev/null | grep -o '"dispatcher"' | wc -l)
+  n_pl=$(dms ipc call plugins list 2>/dev/null | grep -c '\[loaded\]')
+  n_off=$(dms ipc call plugins list 2>/dev/null | grep -c '\[disabled\]')
+  if [ "${n_binds:-0}" -ge 20 ]; then log "  ${c_pass}ok${c_off}    $n_binds binds live in this session"; else
+    warn "  ${c_fail}FAIL${c_off}  ${n_binds:-0} binds — run: hyprctl reload"; fails=$((fails + 1)); fi
+  log "  ${c_dim}--${c_off}    plugins: $n_pl loaded, $n_off disabled"
+  step "physis adapter socket" test -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/physis-omarchy.sock"
+
+  hr
+  log "what only you can see (each one is one keypress, all reversible)"
+  cat <<'EOF'
+  menus        SUPER+Space      dankMenu opens, Escape closes
+               SUPER+X          power menu
+               SUPER+Y          keybind cheatsheet
+               SUPER+V          clipboard history
+  capture      Print            region screenshot; file lands in ~/Pictures
+               SUPER+CTRL+Print OCR a region to the clipboard   (needs tesseract)
+               ALT+Print        start/stop a region recording    (needs wf-recorder)
+  hardware     F1 / F2          display brightness down / up
+               F5 / F6          keyboard backlight down / up
+               F10              mute;  F11 / F12 volume
+  look         omarchy-theme-toggle          dark <-> light
+               omarchy-night-toggle          blue-light filter
+  layout       omarchy-layout-toggle         dwindle <-> master
+               omarchy-toggle-touchpad       trackpad off/on
+  plugins      dms plugins browse            the store, in a terminal
+               dms ipc call plugins list      id [loaded|disabled]
+               dms ipc call plugins disable cavaVisualizer   (use enable/disable:
+                                              `toggle` returns PLUGIN_TOGGLE_FAILED)
+               dms plugins lock               pins every plugin to a commit
+               dms plugins restore            re-installs those exact commits
+
+  The keys above are the omarchy profile. On the niri profile the verbs still
+  work as commands; only SUPER+Space / SUPER+X / SUPER+V / SUPER+Y are bound.
+  Switch with: ./install.sh binds omarchy     (back: ./install.sh binds niri)
+EOF
+  hr
+  [ "$fails" = 0 ] && log "selftest: automatic checks pass — the rest is a keypress away"
+  [ "$fails" != 0 ] && warn "selftest: $fails automatic check(s) failed"
+  [ "$fails" = 0 ] || return 2
+  return 0
+}
+
 cmd_menu() {
   command -v whiptail >/dev/null 2>&1 || { cmd_status; return 0; }
   load_config
@@ -566,6 +635,7 @@ case "${ACTION:-}" in
   install)   cmd_install ;;
   update)    cmd_update ;;
   doctor)    cmd_doctor ;;
+  selftest)  cmd_selftest ;;
   status)    cmd_status ;;
   binds)     cmd_binds "${REST[0]:-}" ;;
   uninstall) cmd_uninstall "${REST[0]:-}" ;;
