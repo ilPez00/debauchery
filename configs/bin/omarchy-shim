@@ -27,6 +27,32 @@ need() { command -v "$1" >/dev/null 2>&1 || die "$1 is missing — sudo apt inst
 
 dms()  { need dms dms; dms ipc call "$@"; }
 
+# First token of Exec= in a .desktop id, from the user dir then the system one.
+desktop_bin() {
+  local id=$1 f
+  for f in "$HOME/.local/share/applications/$id" "$HOME/.nix-profile/share/applications/$id" \
+           "/usr/share/applications/$id"; do
+    [ -r "$f" ] || continue
+    sed -n 's/^Exec=\([^ ]*\).*/\1/p' "$f" | head -1
+    return 0
+  done
+  return 1
+}
+
+# The chromium-family browser to run web apps in: --app is not a Firefox flag.
+webapp_browser() {
+  local id bin
+  id=$(xdg-settings get default-web-browser 2>/dev/null || true)
+  case "$id" in
+    chromium*|google-chrome*|brave*|microsoft-edge*|opera*|vivaldi*|helium*) ;;
+    *) id="chromium.desktop" ;;
+  esac
+  bin=$(desktop_bin "$id") || bin=""
+  [ -n "$bin" ] || bin=$(command -v chromium || command -v chromium-browser || true)
+  [ -n "$bin" ] || return 1
+  printf '%s\n' "$bin"
+}
+
 # The shell scans plugins only at startup: install and remove both need a
 # restart before `plugin-list` tells the truth. Wait for IPC to answer.
 dms_restart() {
@@ -51,7 +77,8 @@ media lock night-toggle theme-toggle notifications-toggle
 toggle-touchpad layout-toggle window-close-all cmd-terminal-cwd
 launch-browser
 plugin-list plugin-install plugin-remove plugin-update plugin-lock
-plugin-search"
+plugin-search
+launch-webapp webapp-install webapp-list webapp-remove launch-or-focus"
 
 # step <arg> -> "<op> <value>" for the dms brightness/audio verbs. The dms
 # increment/decrement verbs take a bare number; set takes a percentage.
@@ -99,6 +126,10 @@ omarchy-shim — Omarchy verbs on DMS + Debian (Tier 1)
   plugin-remove <id>              disable, then uninstall
   plugin-update [<id>|--all]      no arg = all
   plugin-lock                     pin every plugin into the repo lockfile
+  launch-webapp <url>             the URL in a chromium --app window
+  webapp-install <name> <url> [icon]   create the launcher (favicon fetched)
+  webapp-list / webapp-remove <name>
+  launch-or-focus <class> <cmd...>     focus that window class, else run cmd
   --check / --list
 
 Not implemented on purpose: omarchy-install-*, gaming, PAM/portal writes.
@@ -125,6 +156,8 @@ verb_check() {
   row slurp         "$(has slurp)"         "region selection" optional
   row tesseract     "$(has tesseract)"     "OCR (apt install tesseract-ocr)" optional
   row wf-recorder   "$(has wf-recorder)"   "screen recording (apt install wf-recorder)" optional
+  row chromium      "$(has chromium)"      "web apps (chromium --app)" optional
+  row uwsm-app      "$(has uwsm-app)"      "detaching launched windows" optional
   local v n=0
   for v in $VERBS; do [ -L "$HOME/.local/bin/omarchy-$v" ] && n=$((n + 1)); done
   printf '\n  %-28s %s/%s\n' "verbs installed" "$n" "$(printf '%s\n' $VERBS | wc -l)"
@@ -304,6 +337,92 @@ case "$VERB" in
         "$repo/configs/dms-plugins.lock.json"
     else
       command dms plugins lock || die "lock failed"
+    fi ;;
+
+  # --- web apps (chromium --app + a .desktop launcher) -----------------------
+  launch-webapp)
+    [ $# -gt 0 ] || die "usage: $SELF <url>"
+    url=$1; shift
+    bin=$(webapp_browser) || { need xdg-open xdg-utils; exec xdg-open "$url"; }
+    # uwsm-app detaches the window from the launching process when it is there.
+    if command -v uwsm-app >/dev/null 2>&1; then
+      exec uwsm-app -- "$bin" --app="$url" "$@"
+    fi
+    exec "$bin" --app="$url" "$@" ;;
+
+  webapp-install)
+    [ $# -ge 2 ] || die "usage: $SELF <name> <url> [icon|icon-url]"
+    name=$1 url=$2 icon=${3:-}
+    case "$url" in *://*) ;; *) url="https://$url" ;; esac
+    apps=$HOME/.local/share/applications
+    icons=$apps/icons
+    mkdir -p "$icons"
+    case "$icon" in
+      "") icon_path=$icons/$name.png
+          # google s2 answers 404 for domains without a favicon and 200 with an
+          # empty body for others, so the file must be non-empty to be usable.
+          host=$(printf '%s' "$url" | sed -E 's#^[a-z+]+://##; s#/.*$##')
+          ok=0
+          for src in "https://www.google.com/s2/favicons?domain=$host&sz=128" \
+                     "https://icons.duckduckgo.com/ip3/$host.ico"; do
+            if curl -fsSL -o "$icon_path" "$src" 2>/dev/null && [ -s "$icon_path" ]; then
+              ok=1; break
+            fi
+          done
+          [ "$ok" = 1 ] || { rm -f "$icon_path"; icon_path=web-browser; } ;;
+      http://*|https://*) icon_path=$icons/$(basename "$icon"); 
+          curl -fsSL -o "$icon_path" "$icon" || die "icon download failed: $icon" ;;
+      /*) icon_path=$icon ;;
+      *)  icon_path=$icon ;;
+    esac
+    cat > "$apps/$name.desktop" <<EOF
+[Desktop Entry]
+Version=1.0
+Name=$name
+Comment=$name
+Exec=$HOME/.local/bin/omarchy-launch-webapp $url
+Terminal=false
+Type=Application
+Icon=$icon_path
+StartupNotify=true
+EOF
+    chmod +x "$apps/$name.desktop"
+    update-desktop-database "$apps" >/dev/null 2>&1 || true
+    printf 'web app "%s" -> %s (%s)\n' "$name" "$url" "$apps/$name.desktop" ;;
+
+  webapp-list)
+    apps=$HOME/.local/share/applications
+    n=0
+    for f in "$apps"/*.desktop; do
+      [ -r "$f" ] || continue
+      grep -q 'omarchy-launch-webapp' "$f" || continue
+      name=$(sed -n 's/^Name=//p' "$f" | head -1)
+      url=$(sed -n 's/^Exec=.*omarchy-launch-webapp //p' "$f" | head -1)
+      printf '%-28s %s\n' "$name" "$url"
+      n=$((n + 1))
+    done
+    [ "$n" -gt 0 ] || printf 'no web apps installed (omarchy-webapp-install <name> <url>)\n' ;;
+
+  webapp-remove)
+    [ $# -ge 1 ] || die "usage: $SELF <name>"
+    apps=$HOME/.local/share/applications
+    f=$apps/$1.desktop
+    [ -f "$f" ] || die "no such web app: $1"
+    grep -q 'omarchy-launch-webapp' "$f" || die "$1 is not a web app; refusing to remove it"
+    rm -f "$f" "$apps/icons/$1.png"
+    update-desktop-database "$apps" >/dev/null 2>&1 || true
+    printf 'web app "%s": removed\n' "$1" ;;
+
+  launch-or-focus)
+    [ $# -ge 2 ] || die "usage: $SELF <window-class> <command...>"
+    need hyprctl hyprland; need jq jq
+    class=$1; shift
+    addr=$(hyprctl clients -j | jq -r --arg c "$class" '
+      [.[] | select((.class | ascii_downcase) | contains($c | ascii_downcase))] | .[0].address // empty')
+    if [ -n "$addr" ]; then
+      hyprctl dispatch focuswindow "address:$addr" >/dev/null && printf 'focused: %s\n' "$class"
+    else
+      exec "$@"
     fi ;;
 
   *) die "no such verb (try: omarchy-shim --list)" ;;

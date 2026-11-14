@@ -164,6 +164,11 @@ should be ported to Lua eventually (see `plans/`).
   print state; remove is the inverse and restarts too, so `plugin-list` tells
   the truth. Round-trip tested on `dankCalendarAgenda` (installed, loaded,
   removed, gone from disk and from the list). 29 shim verbs now.
+- Web apps (Tier 2, 2026-11-14): `omarchy-launch-webapp`, `-webapp-install`,
+  `-webapp-list`, `-webapp-remove`, `-launch-or-focus`. Verified with
+  `https://example.com` (window class `Chromium`) and a favicon for github.com;
+  `example.com` has no favicon, so the generic icon is the expected result.
+  `omarchy-launch-or-focus-webapp` is deliberately absent (see CONTRACT).
 - `./install.sh config` is the settings TUI (keymap, theme mode, night filter,
   layout, plugin checklist, touchpad, edit config); with no TTY it prints the
   state and the command for each setting instead.

@@ -71,10 +71,30 @@ and it arrives disabled. Each verb below was exercised on air 2026-11-14.
 | `omarchy-plugin-update [<id>\|--all]` | no argument means `--all` |
 | `omarchy-plugin-lock` | pins every plugin into `configs/dms-plugins.lock.json` |
 
+Web apps are Tier 2 upstream (`omarchy-launch-webapp`, `omarchy-webapp-install`)
+and they are implemented here, because they need nothing Arch-specific — a
+chromium-family browser with `--app` and a `.desktop` file.
+
+| Verb | What it does |
+|---|---|
+| `omarchy-launch-webapp <url>` | the URL in a `--app` window; resolves the default browser only when it is chromium-family, else falls back to `chromium.desktop` |
+| `omarchy-webapp-install <name> <url> [icon]` | writes `~/.local/share/applications/<name>.desktop`, fetching the favicon (google s2, then duckduckgo, then the generic `web-browser` icon — s2 answers 200 with an empty body for domains without one) |
+| `omarchy-webapp-list` | name + url of every launcher whose `Exec` is `omarchy-launch-webapp` |
+| `omarchy-webapp-remove <name>` | deletes the launcher and its icon; refuses a `.desktop` that is not a web app |
+| `omarchy-launch-or-focus <class> <cmd...>` | focuses the first window whose class contains `<class>`, otherwise runs the command |
+
+Measured 2026-11-14: `launch-webapp https://example.com` produced a window with
+class `Chromium`, title `example.com_/`; `launch-or-focus Chromium …` focused it
+instead of running the command. `uwsm-app` is present and used to detach.
+
+Not implemented: `omarchy-launch-or-focus-webapp` (it identifies a web app by
+the `crx_<hash>` window class, and chromium on Debian reports class `Chromium`
+for every `--app` window, so the hash never matches).
+
 Still skipped on purpose: `omarchy-install-*`, `omarchy-remove-*`, gaming,
-dictation, webapp launchers, `linux-omarchy`, PAM and portal steps. They assume
-Arch, systemd system units and Omarchy's own shell; none of them are needed for
-the interface, and several are the exact steps that break a working session.
+dictation, `linux-omarchy`, PAM and portal steps. They assume Arch, systemd
+system units and Omarchy's own shell; none of them are needed for the
+interface, and several are the exact steps that break a working session.
 
 ## Keybind parity
 

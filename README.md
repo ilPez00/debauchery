@@ -72,6 +72,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `configs/debauchery/` | `config.example` — the keys `install.sh` reads from `~/.config/debauchery/config` |
 | `configs/zsh/` | Shell snippets deployed to `~/.config/` (`ssh-aliases.zsh`, `debauchery.zsh`) |
 | `configs/arch-debian.map` | Arch package name → Debian/container target, read by `omarchy-pkg` |
+| `configs/bin/omarchy-shim` | every Omarchy verb (34): DMS, capture, plugin store, web apps |
 | `configs/dms-plugins.lock.json` | the 15 DMS plugins pinned to exact commits (`dms plugins restore`, or `omarchy-plugin-lock` to refresh) |
 | `docs/` | `CONTRACT.md`, `INSTALL.md`, `TROUBLESHOOTING.md`, `LUA-PORT.md` |
 | `AGENTS.md` | Non-interactive contract: allowed commands, exit codes, never-do list |

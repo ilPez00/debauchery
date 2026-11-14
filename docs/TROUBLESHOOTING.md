@@ -134,6 +134,8 @@ stripping the suffix.
 | `omarchy-menu` does nothing | DMS not running, or the shim not deployed | `systemctl --user status dms`, `./scripts/11-omarchy-shims.sh --check` |
 | `omarchy-capture-text` errors | `tesseract` missing | `sudo apt install tesseract-ocr`, or ignore (optional) |
 | screen recording errors | `wf-recorder` missing | `sudo apt install wf-recorder` |
+| `omarchy-launch-webapp` opens a normal browser tab | the default browser is not chromium-family (Firefox has no `--app`), or `chromium` is missing | `omarchy-shim --check` shows `chromium`; set it as `xdg-settings set default-web-browser chromium.desktop` |
+| a web app launcher has the generic icon | that domain serves no favicon (google s2 answers 200 with an empty body) | pass one: `omarchy-webapp-install Name https://site https://site/icon.png` |
 | touchpad toggle does nothing | device name changed | `hyprctl devices -j \| jq -r '.mice[].name'`; the shim picks `bcm\|touchpad\|trackpad` |
 | `alias ar` missing in a new shell | `~/.zshrc` does not source `~/.config/debauchery/aliases.zsh` | `./install.sh install --only zsh` |
 
