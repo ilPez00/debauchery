@@ -38,7 +38,7 @@ container_tools() {
 gateway() { "$BIN_DIR/omarchy-arch" "$@"; }
 pkg()     { "$BIN_DIR/omarchy-pkg" "$@"; }
 
-container_bin() { gateway bash -lc "command -v $1" 2>/dev/null | tr -d '\r'; }
+container_bin() { gateway bash -lc "command -v $1 || command -v ${1%-bin}" 2>/dev/null | tr -d '\r'; }
 
 disk_ok() {
   local free
@@ -114,7 +114,11 @@ check() {
   for t in $tools; do
     if pkg present "$t"; then
       printf '  %-14s container: yes' "$t"
-      [ -x "$BIN_DIR/$t" ] && printf '  host: %s\n' "$BIN_DIR/$t" || printf '  host: not exported\n'
+      if [ -x "$BIN_DIR/$t" ] || [ -x "$BIN_DIR/${t%-bin}" ]; then
+        printf '  host: %s\n' "$BIN_DIR/${t}"
+      else
+        printf '  host: not exported\n'
+      fi
     else
       printf '  %-14s container: no\n' "$t"
       rc=1

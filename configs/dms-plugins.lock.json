@@ -3,11 +3,15 @@
   "plugins": {
     "aiOverviewControl": {
       "repo": "https://github.com/bernardopg/AiOverviewControl",
-      "commit": "4f7f13bd88e4bafef50343695924d91c531ee2de"
+      "commit": "c431a5f54eaf8a9714fcd11c6d689173329c135b"
     },
     "animationRotate": {
       "repo": "https://github.com/pnbarbeito/dms-niri-animation-rotate",
       "commit": "2211ead4f561632b8eb8bfa0bb10f6faf1af95b0"
+    },
+    "batteryPlus": {
+      "repo": "https://github.com/arcatva/dms-battery-plus",
+      "commit": "4e653d09174e1edc260f279c42ec2477b6fb2e24"
     },
     "cavaVisualizer": {
       "repo": "https://github.com/ernestowgg/cava-visualizer",

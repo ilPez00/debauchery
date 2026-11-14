@@ -21,14 +21,29 @@ Omarchy has no plugin store; DMS does, and it is the one this layer uses.
 
 | Task | Command | Measured |
 |---|---|---|
-| the store | `dms plugins browse` | reads the registry (a git fetch, ~10k objects, slow the first time) |
-| what is installed | `dms ipc call plugins list` | `id [loaded\|disabled]`, 15 plugins, 11 loaded |
+| the store | `dms plugins browse` | TUI over the registry; `dms plugins list` prints it and works without a TTY |
+| the registry on disk | `ls /tmp/dankdots-plugin-registry/official/plugins` | one `<author>-<name>.json` per plugin; the `id` field is what `install` takes |
+| what is installed | `dms ipc call plugins list` | `id [loaded\|disabled]`; `dms ipc call plugin-scan list` gives `id / state / kind / name` |
 | turn one on/off live | `dms ipc call plugins enable\|disable <id>` | works, no shell restart |
 | `toggle` | `dms ipc call plugins toggle <id>` | **always** `PLUGIN_TOGGLE_FAILED`, even on a loaded plugin — use enable/disable |
 | pin everything | `dms plugins lock` | writes `~/.config/dms/plugins.lock.json` (repo + commit per plugin) |
-| rebuild exactly | `dms plugins restore` | re-installs the pinned commits |
-| install by id | `dms plugins install <id>` | from the registry |
-| update | `dms plugins update <id>\|--all` | also drops the old checkouts |
+| rebuild exactly | `dms plugins restore [lockfile]` | re-installs the pinned commits; takes a lockfile path, so the repo copy is directly usable |
+| install by id | `dms plugins install <id>` | from the registry, e.g. `batteryPlus` (the manifest's `id`, not the file name) |
+| update | `dms plugins update <id>\|--all` | also drops the old checkouts; `dms plugins list` marks the ones with `(update available)` |
+
+**A newly installed plugin is invisible until DMS restarts.** Measured
+2026-11-14 with `batteryPlus`: `dms plugins install batteryPlus` reported
+success and the files were on disk in `~/.config/dms/plugins/batteryPlus`, but
+`plugins status` said `PLUGIN_NOT_FOUND` and `plugin-scan list` did not show it.
+`plugin-scan rescan <id>` and `plugins reload <id>` both answer
+`unknown pluginId` — they only act on plugins the shell already knows. The fix:
+
+```bash
+systemctl --user restart dms.service      # the bar blinks, comes back
+dms ipc call plugins enable batteryPlus    # it arrives disabled
+```
+
+Installing does not change what is loaded; `enable` does. Both steps are needed.
 
 `dms plugins lock` + a copy of `~/.config/dms/plugins.lock.json` in this repo is
 what makes the shell reproducible after a reinstall — the same role the
@@ -73,6 +88,35 @@ from the sourced file after the second colon.
 | `paru` resolves to the host shim | distrobox exports the host `PATH` into the box | already fixed: the gateway pins the container `PATH`, sets `OMARCHY_IN_BOX=1`, and inside an Arch container the shims hand off to `/usr/bin/<name>` |
 | `omarchy-arch uname -a` says Debian | containers share the host kernel — expected | `omarchy-arch --os` |
 | AUR build dies mid-way | disk filled (this box has done it) | free space, `omarchy-pkg add <pkg>` again; prefer `-bin` packages |
+| `paru` prints `Ci sono 3 provider disponibili` and then fails | a package with `-bin` / `-git` variants; `--noconfirm` picks nothing and paru exits | name the variant in the map: `herdr aur:herdr-bin` |
+| `zig=0.16.0 (richiesto da: herdr)` | the AUR package pins an exact toolchain Arch does not ship | use its `-bin` package instead of building |
+
+## AUR (`omarchy-pkg aur-add`)
+
+Measured end to end on 2026-11-14, inside `arch-omarchy`:
+
+```
+$ omarchy-pkg aur-add tensaku
+→ AUR package in container: tensaku
+installing tensaku...            # ~45 s, prebuilt upstream binary, rust dep not compiled
+$ omarchy-pkg present tensaku    # exit 0
+$ ./scripts/10-omarchy-tools.sh --export-only
+[tools] tensaku: exported /usr/bin/tensaku -> /home/gio/.local/bin/tensaku
+```
+
+`pacman -Qm` inside the box is the honest list of what came from the AUR:
+`aether`, `ttfx`, `tensaku`, `herdr-bin`, plus `paru-bin` and `yay-bin`.
+
+The two failure modes above are the ones that actually happened, and both are
+fixed in `configs/arch-debian.map` rather than in code. Everything else is the
+existing path: `omarchy-pkg add <name>` resolves the map, then pacman, then
+paru.
+
+`herdr` is the case worth remembering: the source package is **flagged obsolete**
+on the AUR (`Obsoleto: 2026-10-29`) and pins `zig=0.16.0`, so it cannot build
+from repos. `herdr-bin` is 0.9.5, installed in seconds, and exports `/usr/bin/herdr`
+— which is why `scripts/10-omarchy-tools.sh` resolves a `-bin` package's binary by
+stripping the suffix.
 
 ## Keys and shell
 

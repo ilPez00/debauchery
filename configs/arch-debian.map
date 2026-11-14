@@ -57,7 +57,10 @@ hypridle              apt:hypridle
 # `extra` repo (not the AUR), and `omarchy-nvim` is not published anywhere — it
 # ships inside the Omarchy repo itself.
 aether                aur:aether
-herdr                 aur:herdr
+# `herdr` (source) needs zig=0.16.0, which Arch does not ship — the build fails
+# at dependency resolution. `herdr-bin` is the same upstream release, prebuilt,
+# and installs its binary as /usr/bin/herdr. Measured 2026-11-14: herdr 0.9.5.
+herdr                 aur:herdr-bin
 impala                arch:impala
 tensaku               aur:tensaku
 ttfx                  aur:ttfx

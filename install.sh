@@ -575,6 +575,10 @@ cmd_selftest() {
                dms ipc call plugins list      id [loaded|disabled]
                dms ipc call plugins disable cavaVisualizer   (use enable/disable:
                                               `toggle` returns PLUGIN_TOGGLE_FAILED)
+               dms plugins install batteryPlus   then RESTART dms.service:
+                                              a new plugin is invisible until
+                                              the shell restarts, and arrives
+                                              disabled (plugins enable <id>)
                dms plugins lock               pins every plugin to a commit
                dms plugins restore            re-installs those exact commits
 

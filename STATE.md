@@ -143,14 +143,22 @@ should be ported to Lua eventually (see `plans/`).
 
 ## 6d. DMS plugins (2026-11-14)
 
-- 15 plugins installed, pinned by `configs/dms-plugins.lock.json`
-  (`dms plugins lock`, rebuilt with `dms plugins restore <lockfile>`).
+- 16 plugins installed, pinned by `configs/dms-plugins.lock.json`
+  (`dms plugins lock`, rebuilt with `dms plugins restore <lockfile>` — the repo
+  copy works as the argument, no need to touch `~/.config`).
+- Registry install proven 2026-11-14: `dms plugins install batteryPlus`
+  (id from the manifest under `/tmp/dankdots-plugin-registry/official/plugins`).
+  **A new plugin is invisible until `systemctl --user restart dms.service`**,
+  and arrives `disabled` — `dms ipc call plugins enable batteryPlus` loads it.
+- `dms plugins update aiOverviewControl` worked, and changed its pinned commit.
 - Three niri-scoped plugins disabled under Hyprland — they query niri's IPC and
   cannot work here: `animationRotate`, `niriWorkspaceBar`, `niriWindows`.
   Re-enable with `dms ipc call plugins enable <id>`.
 - `dms ipc call plugins toggle <id>` is broken in this build
   (`PLUGIN_TOGGLE_FAILED`); `enable` / `disable` work.
 - `hyprpm` unused: version-locked compiled plugins can take the compositor down.
+- Loaded/unloaded after the work: 9 loaded (incl. `batteryPlus`), 7 unloaded —
+  4 by the user's own choice, 3 niri-scoped disabled here.
 
 ## 7. Distrobox / podman
 
@@ -213,7 +221,10 @@ should be ported to Lua eventually (see `plans/`).
 - [x] AUR helpers in the container: `paru` + `yay` (2026-11-12).
 - [x] Omarchy interface layer (2026-11-14): `omarchy-shim` + 23 `omarchy-*` verbs,
       omarchy bind profile, zsh aliases, `install.sh` (install/update/doctor).
-- [x] `impala` 0.9.0 is installed in the container (the remaining AUR tools —
-      `aether`, `herdr`, `tensaku`, `ttfx` — are still opt-in).
+- [x] All five map-mapped Arch/AUR tools installed and exported to
+      `~/.local/bin` on 2026-11-14: `aether` 4.32.0, `ttfx` 0.5.1, `tensaku`,
+      `herdr` 0.9.5 (via `herdr-bin`; the source package is flagged obsolete and
+      pins `zig=0.16.0`), `impala` 0.9.0. `./scripts/10-omarchy-tools.sh --check`
+      is the truth for this list.
 - [ ] Optional: root-tier cleanup (`apt-get clean`, journal vacuum,
       `flatpak uninstall --unused`) — ran 2026-11-12, gained ~0.
