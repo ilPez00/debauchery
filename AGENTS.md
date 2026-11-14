@@ -59,8 +59,12 @@ Never infer health from a single command's exit code; `doctor` is the gate.
 * `preflight failed` — nothing changed; fix the named item.
 * `FAIL` rows in `doctor` — an installed piece is broken. A `WARN` row for a
   module simply means it is not installed.
-* `binds … failed --verify-config` — read the `Config error … at line N` line; it
-  names the file and the dispatcher.
+* `binds: '<profile>' rejected by Hyprland` — the previous `binds.conf` was
+  already restored; read the innermost `Config error … at line N`, fix the repo
+  copy, re-run `binds`.
+* `binds-live` FAIL in `doctor` — the running session has almost no binds
+  (it re-read a file that did not parse). `hyprctl reload` fixes it; do not
+  restart the session.
 * `git pull refused` — the clone diverged. Report it; do not force.
 
 ## Where to look

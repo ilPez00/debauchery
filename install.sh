@@ -213,6 +213,47 @@ native_zsh() {
   wire_zshrc "$HOME/.zshrc" '[ -f ~/.config/debauchery/aliases.zsh ] && source ~/.config/debauchery/aliases.zsh'
 }
 
+# binds_verify — the live config chain must parse. Prints the reason on failure.
+binds_verify() {
+  local out
+  command -v Hyprland >/dev/null 2>&1 || return 0
+  out=$(Hyprland --verify-config -c "$HOME/.config/hypr/hyprland.conf" 2>&1)
+  if grep -q 'config ok' <<<"$out"; then return 0; fi
+  grep -E 'Config error' <<<"$out" | head -3 | sed 's/^/    /' >&2
+  return 1
+}
+
+# binds_apply — deploy a profile, and never leave a rejected one live.
+binds_apply() { # src profile
+  local src=$1 profile=$2 live=$HOME/.config/hypr/binds.conf prev="" n
+  [ -f "$live" ] && { prev=$(mktemp); cp -a "$live" "$prev"; }
+
+  deploy_file "$src" "$live" 644 || return 1
+  [ "$DRY" = 1 ] && return 0
+
+  if ! binds_verify; then
+    warn "  FAIL  binds: '$profile' rejected by Hyprland — restoring the previous file"
+    [ -n "$prev" ] && { mv -f "$prev" "$live"; prev=""; }
+    return 1
+  fi
+  log "  binds: $profile profile verified (config ok)"
+  [ -n "$prev" ] && rm -f "$prev"
+
+  # A failed parse earlier leaves the running session with no binds; Hyprland
+  # does not retry on its own, so force a reload and prove the result.
+  if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null 2>&1; then
+    hyprctl reload >/dev/null 2>&1 || true
+    sleep 0.3
+    n=$(hyprctl binds -j 2>/dev/null | grep -o '"dispatcher"' | wc -l)
+    if [ "${n:-0}" -lt 20 ]; then
+      warn "  FAIL  binds: the running session has only ${n:-0} binds — run: hyprctl reload"
+      return 1
+    fi
+    log "  binds: $n binds live in this session"
+  fi
+  return 0
+}
+
 native_binds() {
   local profile src
   profile=$(cfg_get DEBAUCHERY_BINDS); profile=${profile:-niri}
@@ -221,17 +262,7 @@ native_binds() {
     omarchy) src=$REPO/configs/binds/omarchy.conf ;;
     *) warn "unknown bind profile '$profile' (niri|omarchy)"; return 1 ;;
   esac
-  deploy_file "$src" "$HOME/.config/hypr/binds.conf" 644 || return 1
-  [ "$DRY" = 1 ] && return 0
-  if command -v Hyprland >/dev/null 2>&1; then
-    if Hyprland --verify-config -c "$HOME/.config/hypr/hyprland.conf" 2>&1 | grep -q 'config ok'; then
-      log "  binds: $profile profile verified (config ok)"
-    else
-      warn "  FAIL  binds: $profile profile failed --verify-config"
-      return 1
-    fi
-  fi
-  return 0
+  binds_apply "$src" "$profile"
 }
 
 deploy_file() { # src dst mode
@@ -243,7 +274,10 @@ deploy_file() { # src dst mode
   if [ -e "$dst" ] && [ ! -f "$dst.pre-debauchery" ]; then
     cp -a "$dst" "$dst.pre-debauchery" && log "  backed up $dst"
   fi
-  install -Dm"$mode" "$src" "$dst" && log "  + $dst"
+  # Atomic: `install` truncates in place, and Hyprland reloads on inotify — a
+  # half-written binds.conf parses with no binds and the running session keeps
+  # the empty set. Renaming a complete file is seen as one event.
+  install -m"$mode" "$src" "$dst.new" && mv -f "$dst.new" "$dst" && log "  + $dst"
 }
 
 wire_zshrc() { # file line
@@ -394,6 +428,11 @@ cmd_doctor() {
   judge 'systemctl --user is-active --quiet dms.service' FAIL dms "dms.service $(systemctl --user is-active dms.service 2>/dev/null || echo unknown)"
   judge '! systemctl --user is-enabled xdg-desktop-portal-hyprland.service 2>/dev/null | grep -q masked' FAIL portal "xdg-desktop-portal-hyprland masked?"
   judge '[ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/physis-omarchy.sock" ]' WARN physis-socket "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/physis-omarchy.sock"
+  # A config that parses is not a session with working keys: a parse error at
+  # reload time leaves the running instance with almost no binds.
+  local live_binds=0
+  [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && live_binds=$(hyprctl binds -j 2>/dev/null | grep -o '"dispatcher"' | wc -l)
+  judge "test ${live_binds:-0} -ge 20" FAIL binds-live "${live_binds} binds in the running session (a healthy profile has ~150)"
 
   log ""
   log "container"
@@ -428,9 +467,9 @@ cmd_doctor() {
   bprof=$(cfg_get DEBAUCHERY_BINDS); bprof=${bprof:-niri}
   case "$bprof" in omarchy) bsrc=$REPO/configs/binds/omarchy.conf ;; *) bsrc=$REPO/configs/hypr/binds.conf ;; esac
   if cmp -s "$bsrc" "$HOME/.config/hypr/binds.conf" 2>/dev/null; then
-    emit PASS "binds" "$bprof profile installed"
+    emit PASS "binds-profile" "$bprof profile installed"
   else
-    emit FAIL "binds" "deployed binds.conf does not match profile '$bprof'"
+    emit FAIL "binds-profile" "deployed binds.conf does not match profile '$bprof'"
     fails=$((fails + 1))
   fi
 

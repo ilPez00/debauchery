@@ -13,7 +13,29 @@ installed* (WARN), and the JSON form is what an agent should read.
 | `disk: … need 5G` | rootfs nearly full | `scripts/04-disk-reclaim.sh`, then retry |
 | `FAIL os … (want Debian 13)` | wrong host (or inside the container) | run on the Debian host, not in `arch-omarchy` |
 | `git pull refused` | local commits diverged from `origin` | resolve by hand; the installer never forces |
-| module ran but `doctor` still WARNs | check is stricter than the script (e.g. `tools` needs `impala`) | run `install --only <id>` and read its output |
+| Module ran but `doctor` still WARNs | check is stricter than the script (e.g. `tools` needs `impala`) | run `install --only <id>` and read its output |
+
+## Hotkeys stopped working
+
+Symptom: the keyboard is fine, typing works, but `SUPER+…` does nothing.
+
+Cause: the running Hyprland re-read a `binds.conf` that did not parse. It keeps
+whatever bindings it loaded before the error (often only the three from
+`extra.conf`) and does not retry when the file is fixed.
+
+```bash
+hyprctl binds -j | grep -c dispatcher   # healthy niri profile: 153
+hyprctl reload                          # restores them
+```
+
+`./install.sh binds niri` now does this itself: writes atomically (a truncate
+in place is a reload trigger), rolls a rejected profile back, reloads, and fails
+if fewer than 20 binds are live. `doctor` has a `binds-live` check for the same
+thing.
+
+Do not chase the `hyprland.conf at line 14` half of a config error: line 14 is
+`source = ~/.config/hypr/binds.conf`, and the message repeats the inner error
+from the sourced file after the second colon.
 
 ## Container (`arch-omarchy`)
 
@@ -34,6 +56,8 @@ installed* (WARN), and the JSON form is what an agent should read.
 |---|---|---|
 | `binds: omarchy profile failed --verify-config` | a dispatcher Hyprland 0.55 does not know | read the `Config error` line; `layoutmsg togglesplit` is valid, `togglesplit` alone is not |
 | edits to `binds.conf` do nothing | DMS's keybind editor writes `~/.config/hypr/hyprland.lua`, which does not exist in a hyprlang config | edit `~/.config/hypr/binds.conf` (repo copy in `configs/`) |
+| **every hotkey stops working at once** | the running instance re-read a `binds.conf` that did not parse (e.g. an invalid dispatcher); Hyprland keeps the binds it managed to load, often only the ones from `extra.conf`, and **never retries** | `hyprctl reload` restores them. `./install.sh binds <profile>` now writes atomically, rolls a rejected profile back, reloads and asserts the live bind count; `doctor` FAILs on `binds-live` if the session has under 20 |
+| `Config error in … hyprland.conf at line 14: Config error in … binds.conf at line 54` | line 14 is the `source = ~/.config/hypr/binds.conf` line; the real error is the *inner* one after the second colon | read the innermost `Config error`, not the outer one. Nothing is wrong with the `source` line, and nothing is wrong with globbing |
 | `$mainMod` binds fire on bare `P`/`H`/`O` | Hyprland substitutes an undefined variable with an empty string, and `--verify-config` still says ok | `$mainMod = SUPER` is defined in `hyprland.conf`; keep it |
 | `omarchy-menu` does nothing | DMS not running, or the shim not deployed | `systemctl --user status dms`, `./scripts/11-omarchy-shims.sh --check` |
 | `omarchy-capture-text` errors | `tesseract` missing | `sudo apt install tesseract-ocr`, or ignore (optional) |
