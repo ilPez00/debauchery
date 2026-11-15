@@ -102,6 +102,12 @@ Current air bar: defaults + `githubInbox` + `mailChecker` in the right section.
 - Deps present on air: curl, jq, file, and `secret-tool` (installed via
   `libsecret-tools`; gnome-keyring-daemon runs with `--components=secrets`).
 - Keyring roundtrip proven: `secret-tool store/lookup/clear`.
+- **Done 2026-11-15**: the token from pansa's `gh` was piped straight into the
+  keyring (`ssh pansa-ts 'gh auth token' | secret-tool store ... app
+  dms-github-inbox-plugin key github-token`) and the same token authed `gh`
+  on air (account `ilPez00`). The plugin fetched **150 notifications** into
+  its cache (`~/.cache/dms-github-inbox-plugin/objects/cache.json`), API
+  check HTTP 200. It needed one dms restart to pick up the stored token.
 
 ## Mail Checker (unread mail)
 
