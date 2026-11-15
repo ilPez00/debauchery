@@ -47,6 +47,15 @@ picker. Esc at any level quits the menu.
 - `dms ipc call bar <fn>` takes **two** args: a selector (`index|id|name`) and
   a value. `omarchy-bar` hides this; raw IPC calls return `BAR_INVALID_SELECTOR`
   otherwise.
+- **dms v2.1.2 renamed the bar function `show` → `reveal`** (2026-11-15, live
+  function dump: `toggle getPosition manualHide hide setPosition autoHide
+  reveal toggleReveal status toggleAutoHide`, all `(selector, value)`; dock's
+  `status` answers bare). The Go side still answers `BAR_SHOW_SUCCESS` from
+  `reveal`, and an unknown function dumps the list with a misleading
+  "arguments were not expected: 0 index" error. `omarchy-bar` maps
+  `show`→`reveal`, so the shim is unaffected; raw `dms ipc call bar show`
+  fails. Anything speaking raw dms IPC must follow the live dump, not older
+  docs.
 - `dms ipc call dankMenu toggle` needs a route (`root`), `keybinds toggle`
   needs a provider (`hypr`) — both are baked into the menu.
 - `powermenu toggle` answers with an empty body (build quirk), exit 0 — it works.
