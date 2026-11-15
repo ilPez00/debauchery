@@ -55,6 +55,35 @@ Package verbs live in `configs/bin/omarchy-pkg` (see `DISTROBOX.md` §12):
 `add`, `drop`, `present`, `missing`, `install`, `remove`, `aur-add`,
 `aur-install`, plus `pacman` / `yay` / `paru` shims into `arch-omarchy`.
 
+## Install / remove / TUI (Arch-specific via distrobox)
+
+`omarchy-install` and `omarchy-remove` dispatch to `omarchy-install-<name>` /
+`omarchy-remove-<name>` handlers. The default behavior for Arch-specific things
+is to route packages through `arch-omarchy` (distrobox) via `omarchy-pkg`:
+
+| Command | Behavior |
+|---|---|
+| `omarchy-install <name> [args]` | specific handler if present, else `omarchy-pkg add <name>` in container and export |
+| `omarchy-install dev-env <lang>` | installs toolchain packages (ruby/node/bun/deno/go/rust/python/php/java/zig/elixir/dotnet/clojure/ocaml/scala) in container |
+| `omarchy-install terminal <pkg>` | package in container + writes `~/.config/xdg-terminals.list` hint |
+| `omarchy-install browser <name>` / `editor <name>` | mapped to container/aur packages |
+| `omarchy-install app|pkg <pkg...>` | `omarchy-pkg add` |
+| `omarchy-install tui <name> <cmd> <float\|tile> <icon>` | host `.desktop` launcher (xdg-terminal-exec) |
+| `omarchy-install webapp <name> <url> [icon]` | host web app launcher |
+| `omarchy-tui-install/remove/remove-all` | TUI launcher management on host |
+| `omarchy-remove <name>` / `app|pkg` | `omarchy-pkg drop` or specific handler |
+| `omarchy-webapp-remove-all` | remove all omarchy web app launchers |
+
+Host-only targets (`setup-*`, `service-*`, `security-*`, `dictation-*`,
+`direct-boot`, `preinstalls`) are **not** applied as blind package installs: they
+print that upstream does host system config (/etc, systemd, PAM, boot, security)
+and exit non-zero. Use Debian host tooling for those, or `omarchy-arch` for
+Arch-only CLI tools.
+
+All upstream `omarchy-install-*` / `omarchy-remove-*` names are deployed as
+handlers (symlinks to the dispatchers) so direct calls resolve; unknown names
+fall back to package add/drop in the container.
+
 ## Tier 2 — the plugin store, and what is still skipped
 
 Omarchy has no plugin store, so there is no upstream verb to copy. These are

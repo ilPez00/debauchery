@@ -1,0 +1,50 @@
+#!/bin/bash
+# omarchy-tui-install — create a .desktop launcher for a TUI app.
+# Adapted from upstream: uses our omarchy-launch-tui / xdg-terminal-exec.
+set -euo pipefail
+
+ICON_DIR="$HOME/.local/share/applications/icons"
+DESKTOP_DIR="$HOME/.local/share/applications"
+
+if (( $# != 4 )); then
+  echo -e "\e[32mLet's create a TUI shortcut you can start with the app launcher.\n\e[0m"
+  command -v gum >/dev/null 2>&1 || { echo "usage: omarchy-tui-install <name> <command> <float|tile> <icon-url|path>" >&2; exit 1; }
+  APP_NAME=$(gum input --prompt "Name> " --placeholder "My TUI")
+  APP_EXEC=$(gum input --prompt "Launch Command> " --placeholder "lazydocker")
+  WINDOW_STYLE=$(gum choose --header "Window style" float tile)
+  ICON_URL=$(gum input --prompt "Icon URL> " --placeholder "PNG/SVG URL or local path (dashboardicons.com)")
+else
+  APP_NAME="$1"; APP_EXEC="$2"; WINDOW_STYLE="$3"; ICON_URL="$4"
+fi
+
+[[ -n ${APP_NAME:-} && -n ${APP_EXEC:-} && -n ${ICON_URL:-} ]] || { echo "name, command and icon required" >&2; exit 1; }
+
+mkdir -p "$ICON_DIR" "$DESKTOP_DIR"
+
+if [[ ! $ICON_URL =~ ^https?:// ]] && [[ -f $ICON_URL ]]; then
+  ICON_PATH="$ICON_URL"
+else
+  ext=png
+  [[ $ICON_URL == *.svg ]] && ext=svg
+  ICON_PATH="$ICON_DIR/$APP_NAME.$ext"
+  curl -fsSL -o "$ICON_PATH" "$ICON_URL" || { echo "Error: failed to download icon" >&2; exit 1; }
+fi
+
+APP_CLASS="TUI.tile"
+[[ $WINDOW_STYLE == "float" ]] && APP_CLASS="TUI.float"
+
+cat >"$DESKTOP_DIR/$APP_NAME.desktop" <<EOF
+[Desktop Entry]
+Version=1.0
+Name=$APP_NAME
+Comment=$APP_NAME
+Exec=xdg-terminal-exec --app-id=$APP_CLASS -e $APP_EXEC
+Terminal=false
+Type=Application
+Icon=$ICON_PATH
+StartupNotify=true
+EOF
+chmod +x "$DESKTOP_DIR/$APP_NAME.desktop"
+update-desktop-database "$DESKTOP_DIR" >/dev/null 2>&1 || true
+(( $# != 4 )) && echo -e "You can now find $APP_NAME using the app launcher.\n" || true
+exit 0

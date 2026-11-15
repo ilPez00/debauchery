@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+APP_DIR="$HOME/.local/share/applications"
+ICON_DIR="$APP_DIR/icons"
+found=0
+for f in "$APP_DIR"/*.desktop; do
+  [ -r "$f" ] || continue
+  grep -q 'omarchy-launch-webapp' "$f" || continue
+  name=$(basename "$f" .desktop)
+  rm -f "$f" "$ICON_DIR/$name.png"
+  echo "Removed web app: $name"
+  found=1
+done
+update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+(( found )) && echo "Web apps removed." || echo "No web apps found."

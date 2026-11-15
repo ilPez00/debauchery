@@ -21,6 +21,57 @@ log() { printf '[shims] %s\n' "$*"; }
 
 verbs() { "$SRC" --list; }
 
+# Extra standalone omarchy commands (install/remove/tui/…) in configs/bin.
+extras() {
+  (cd "$REPO/configs/bin" && ls omarchy-install omarchy-install-* omarchy-remove omarchy-remove-* \
+      omarchy-tui-* omarchy-webapp-remove-all 2>/dev/null) | sort -u
+}
+
+deploy_extras() {
+  local name src dst target
+  for name in $(extras); do
+    src=$REPO/configs/bin/$name
+    dst=$BIN/$name
+    [ -e "$src" ] || continue
+    if [ -L "$src" ]; then
+      target=$(readlink "$src")
+      # keep relative symlink target valid from $BIN
+      if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$target" ]; then continue; fi
+      [ -e "$dst" ] && [ ! -L "$dst" ] && [ ! -f "$dst.pre-debauchery" ] && cp -a "$dst" "$dst.pre-debauchery"
+      ln -sfn "$target" "$dst"
+      log "linked $dst -> $target"
+    else
+      if [ -f "$dst" ] && cmp -s "$src" "$dst"; then continue; fi
+      [ -f "$dst" ] && [ ! -f "$dst.pre-debauchery" ] && cp -a "$dst" "$dst.pre-debauchery"
+      install -Dm755 "$src" "$dst" && log "deployed $dst"
+    fi
+  done
+}
+
+uninstall_extras() {
+  local name dst
+  for name in $(extras); do
+    dst=$BIN/$name
+    if [ -L "$dst" ] || [ -f "$dst" ]; then
+      if [ -f "$dst.pre-debauchery" ]; then mv -f "$dst.pre-debauchery" "$dst"; log "restored $dst"
+      else rm -f "$dst"; log "removed $dst"; fi
+    fi
+  done
+}
+
+check_extras() {
+  local rc=0 name
+  for name in omarchy-install omarchy-remove omarchy-tui-install omarchy-tui-remove omarchy-webapp-remove-all; do
+    [ -x "$BIN/$name" ] || { log "FAILED missing $name"; rc=1; }
+  done
+  # spot-check a couple of symlinked handlers
+  for name in omarchy-install-dev-env omarchy-remove-dev-env; do
+    [ -x "$BIN/$name" ] || { log "FAILED missing $name"; rc=1; }
+  done
+  [ $rc -eq 0 ] && log "install/remove/tui handlers deployed"
+  return $rc
+}
+
 deploy() {
   mkdir -p "$BIN"
   if [ -f "$DST" ] && cmp -s "$SRC" "$DST"; then
@@ -31,6 +82,8 @@ deploy() {
   fi
 
   local v dst
+  deploy_extras
+
   for v in $(verbs); do
     dst=$BIN/omarchy-$v
     if [ -L "$dst" ] && [ "$(readlink "$dst")" = omarchy-shim ]; then
@@ -46,6 +99,7 @@ deploy() {
 }
 
 uninstall_all() {
+  uninstall_extras
   local v
   for v in $(verbs); do
     [ -L "$BIN/omarchy-$v" ] && { rm -f "$BIN/omarchy-$v"; log "removed $BIN/omarchy-$v"; }
@@ -66,6 +120,7 @@ check() {
     log "$(verbs | wc -l) verbs installed"
   fi
   "$BIN/omarchy-shim" --check || rc=1
+  check_extras || rc=1
   return $rc
 }
 

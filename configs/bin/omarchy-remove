@@ -1,0 +1,64 @@
+#!/bin/bash
+# omarchy-remove — dispatch to omarchy-remove-<name> or remove via distrobox.
+set -uo pipefail
+SELF=$(basename "$0")
+BIN=$(dirname "$0")
+REPO_BIN=${DEBAUCHERY_REPO:-$HOME/debauchery}/configs/bin
+
+die() { printf 'omarchy-remove: %s\n' "$*" >&2; exit 1; }
+log() { printf '[remove] %s\n' "$*"; }
+
+if [[ $SELF == omarchy-remove-* ]]; then
+  sub=${SELF#omarchy-remove-}
+  set -- "$sub" "$@"
+fi
+
+sub=${1:-}
+shift || true
+
+case "$sub" in
+  ""|-h|--help|help)
+    cat <<'EOF'
+omarchy-remove — remove things (Arch-specific bits via distrobox)
+
+  omarchy-remove <name> [args]        run omarchy-remove-<name> if present,
+                                      else remove <name> package from container/host
+                                      via omarchy-pkg drop
+  omarchy-remove tui [name...]        remove TUI launcher(s)
+  omarchy-remove webapp [name...]     remove web app launcher(s)
+  omarchy-remove app <pkg...>         drop package(s) (omarchy-pkg drop)
+
+Host service/security/boot steps from upstream Omarchy are not reverted here
+unless a Debian-specific handler exists.
+EOF
+    exit 0 ;;
+esac
+
+self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+for cand in "$BIN/omarchy-remove-$sub" "$REPO_BIN/omarchy-remove-$sub"; do
+  [[ -e $cand ]] || continue
+  real="$(readlink -f "$cand" 2>/dev/null || echo "$cand")"
+  [[ "$real" == "$self" ]] && continue
+  if [[ -x $cand ]]; then exec "$cand" "$@"; fi
+done
+
+case "$sub" in
+  setup-*|service-*|security-*|dictation-*|direct-boot|preinstalls|remove-launcher-entry)
+    printf '[remove] %s: host system config; nothing to remove from the container by this name\n' "$sub" >&2
+    exit 0 ;;
+  app|package|pkg)
+    [[ $# -gt 0 ]] || die "usage: omarchy-remove app <pkg...>"
+    exec "$BIN/omarchy-pkg" drop "$@" ;;
+  tui)
+    if (( $# == 0 )); then exec "$BIN/omarchy-tui-remove"; else exec "$BIN/omarchy-tui-remove" "$@"; fi ;;
+  webapp)
+    if (( $# == 0 )); then
+      # interactive-ish: list and ask? just show usage
+      exec "$BIN/omarchy-webapp-list"
+    else
+      for n in "$@"; do "$BIN/omarchy-webapp-remove" "$n"; done
+    fi ;;
+esac
+
+log "no specific handler for '$sub'; dropping package via distrobox"
+exec "$BIN/omarchy-pkg" drop "$sub" "$@"

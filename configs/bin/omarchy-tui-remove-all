@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+APP_DIR="${1:-$HOME/.local/share/applications}"
+ICON_DIR="$HOME/.local/share/applications/icons"
+found=0
+while IFS= read -r -d '' file; do
+  if grep -q 'Exec=xdg-terminal-exec --app-id=TUI\.' "$file" 2>/dev/null; then
+    app=$(basename "$file" .desktop)
+    echo "Removing TUI: $app"
+    rm -f "$file" "$ICON_DIR/$app.png" "$ICON_DIR/$app.svg"
+    found=1
+  fi
+done < <(find "$APP_DIR" -maxdepth 1 -name '*.desktop' -print0 2>/dev/null)
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+(( found )) && echo "TUIs removed." || echo "No TUIs found."

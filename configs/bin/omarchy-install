@@ -1,0 +1,157 @@
+#!/bin/bash
+# omarchy-install — dispatch to omarchy-install-<name> or install via distrobox.
+# "Arch-specific via distrobox": package installs go to arch-omarchy (omarchy-pkg).
+set -uo pipefail
+SELF=$(basename "$0")
+BIN=$(dirname "$0")
+REPO_BIN=${DEBAUCHERY_REPO:-$HOME/debauchery}/configs/bin
+
+die() { printf 'omarchy-install: %s\n' "$*" >&2; exit 1; }
+log() { printf '[install] %s\n' "$*"; }
+
+# invoked as omarchy-install-<sub> (symlink/alias form)
+if [[ $SELF == omarchy-install-* ]]; then
+  sub=${SELF#omarchy-install-}
+  set -- "$sub" "$@"
+fi
+
+sub=${1:-}
+shift || true
+
+case "$sub" in
+  ""|-h|--help|help)
+    cat <<'EOF'
+omarchy-install — install things on Debian air (Arch-specific bits via distrobox)
+
+  omarchy-install <name> [args]       run omarchy-install-<name> if present,
+                                      else install <name> as an Arch/AUR package
+                                      in arch-omarchy and export its binary
+  omarchy-install dev-env <lang>      dev toolchain in the container (ruby node
+                                      bun deno go rust python php java zig …)
+  omarchy-install terminal <pkg>      terminal package in container + xdg-terminals
+  omarchy-install browser <name>      browser package (container/aur) where possible
+  omarchy-install editor <name>       editor package in container
+  omarchy-install tui <name> <cmd> <float|tile> <icon>   TUI launcher (host .desktop)
+  omarchy-install webapp <name> <url> [icon]             web app launcher (host)
+  omarchy-install app <pkg...>        package(s) in container (omarchy-pkg add)
+
+Package installs are resolved through configs/arch-debian.map and routed to the
+Debian host (apt) or arch-omarchy (pacman/paru) by omarchy-pkg. Host-modifying
+steps from upstream Omarchy (systemd services, /etc, boot, PAM, security setup)
+are NOT performed here unless explicitly supported for Debian.
+EOF
+    exit 0 ;;
+esac
+
+# specific handler present? (skip self to avoid symlink loops)
+self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+for cand in "$BIN/omarchy-install-$sub" "$REPO_BIN/omarchy-install-$sub"; do
+  [[ -e $cand ]] || continue
+  real="$(readlink -f "$cand" 2>/dev/null || echo "$cand")"
+  [[ "$real" == "$self" ]] && continue
+  if [[ -x $cand ]]; then exec "$cand" "$@"; fi
+done
+
+# Host-only / system / setup targets: not "an Arch package in distrobox".
+# Do the safe part (nothing) and explain, rather than trying `pkg add setup-git`.
+host_only_note() {
+  local name=$1
+  cat >&2 <<EOF
+[install] $name: upstream Omarchy does host system configuration here
+(services, /etc, boot, PAM, security). That is not an Arch package for the
+container and running it on this Debian host would be wrong.
+  - if it's a service/app you want inside Arch: omarchy-pkg add <arch-package>
+  - if it's a Debian host concern: configure it with apt/systemd on the host
+  - container shell for Arch-only tools: omarchy-arch
+EOF
+  return 2
+}
+case "$sub" in
+  setup-*|service-*|security-*|dictation-*|direct-boot|preinstalls|remove-launcher-entry)
+    host_only_note "$sub"; exit $? ;;
+  gaming-*)
+    log "gaming/$sub: GPU/driver/kernel parts are host-side; attempting package install in container where applicable"
+    # fall through to package attempt below for the named thing
+    ;;&  # bash: continue matching
+  gaming-*)
+    # try package named after suffix if obvious, else just note
+    pkg=${sub#gaming-}; "$BIN/omarchy-pkg" add "$pkg" 2>/dev/null && exit 0
+    host_only_note "$sub"; exit $? ;;
+  app|package|pkg)
+    [[ $# -gt 0 ]] || die "usage: omarchy-install app <pkg...>"
+    exec "$BIN/omarchy-pkg" add "$@" ;;
+  tui)
+    exec "$BIN/omarchy-tui-install" "$@" ;;
+  webapp)
+    exec "$BIN/omarchy-webapp-install" "$@" ;;
+  terminal)
+    pkg=${1:-}
+    [[ -n $pkg ]] || die "usage: omarchy-install terminal <alacritty|foot|ghostty|kitty|pkg>"
+    "$BIN/omarchy-pkg" add "$pkg" || exit 1
+    case "$pkg" in
+      alacritty) id=Alacritty.desktop ;;
+      foot) id=foot.desktop ;;
+      ghostty) id=com.mitchellh.ghostty.desktop ;;
+      kitty) id=kitty.desktop ;;
+      *) id="${pkg}.desktop" ;;
+    esac
+    mkdir -p ~/.config
+    cat >~/.config/xdg-terminals.list <<EOF
+# Terminal preference (set by omarchy-install terminal)
+$id
+EOF
+    log "terminal: $pkg installed (container where arch-only), default hint -> $id"
+    exit 0 ;;
+  browser)
+    b=${1:-}
+    [[ -n $b ]] || die "usage: omarchy-install browser <chromium|firefox|brave|chrome|edge|zen|name>"
+    case "$b" in
+      chromium) exec "$BIN/omarchy-pkg" add chromium ;;
+      firefox|firefox-esr) exec "$BIN/omarchy-pkg" add firefox ;;
+      brave) exec "$BIN/omarchy-pkg" add brave-bin ;;
+      chrome|google-chrome) exec "$BIN/omarchy-pkg" add google-chrome ;;
+      edge) exec "$BIN/omarchy-pkg" add microsoft-edge-stable-bin ;;
+      *) exec "$BIN/omarchy-pkg" add "$b" ;;
+    esac ;;
+  editor)
+    e=${1:-}
+    [[ -n $e ]] || die "usage: omarchy-install editor <nvim|helix|emacs|vscode|zed|name>"
+    case "$e" in
+      nvim|neovim) exec "$BIN/omarchy-pkg" add neovim ;;
+      helix|hx) exec "$BIN/omarchy-pkg" add helix ;;
+      emacs) exec "$BIN/omarchy-pkg" add emacs ;;
+      vscode|code) exec "$BIN/omarchy-pkg" add visual-studio-code-bin ;;
+      zed) exec "$BIN/omarchy-pkg" add zed ;;
+      *) exec "$BIN/omarchy-pkg" add "$e" ;;
+    esac ;;
+  dev-env)
+    lang=${1:-}
+    [[ -n $lang ]] || die "usage: omarchy-install dev-env <ruby|node|bun|deno|go|rust|python|php|java|zig|elixir|dotnet|clojure|ocaml>"
+    log "dev-env $lang: installing toolchain packages in arch-omarchy (container)"
+    case "$lang" in
+      ruby)    pkgs=(ruby ruby-bundler ruby-rake base-devel libyaml) ;;
+      node)    pkgs=(nodejs npm) ;;
+      bun)     pkgs=(bun) ;;
+      deno)    pkgs=(deno) ;;
+      go)      pkgs=(go) ;;
+      rust)    pkgs=(rust rustup) ;;
+      python)  pkgs=(python python-pip python-pipx uv) ;;
+      php)     pkgs=(php composer) ;;
+      java)    pkgs=(jdk-openjdk maven gradle) ;;
+      zig)     pkgs=(zig) ;;
+      elixir)  pkgs=(elixir erlang) ;;
+      dotnet)  pkgs=(dotnet-sdk dotnet-runtime) ;;
+      clojure) pkgs=(clojure leiningen) ;;
+      ocaml)   pkgs=(ocaml opam) ;;
+      scala)   pkgs=(scala sbt) ;;
+      laravel|symfony|phoenix) pkgs=("$lang") ;; # best-effort
+      *)       pkgs=("$lang") ;;
+    esac
+    for p in "${pkgs[@]}"; do "$BIN/omarchy-pkg" add "$p" || log "warn: $p failed (continuing)"; done
+    log "dev-env $lang: done (container). Run tools as: omarchy-arch <tool> or exported bin."
+    exit 0 ;;
+esac
+
+# fallback: treat as package name -> container via omarchy-pkg (arch-specific)
+log "no specific handler for '$sub'; installing as package via distrobox"
+exec "$BIN/omarchy-pkg" add "$sub" "$@"

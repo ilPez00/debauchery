@@ -165,6 +165,14 @@ should be ported to Lua eventually (see `plans/`).
   the truth. Round-trip tested on `dankCalendarAgenda` (installed, loaded,
   removed, gone from disk and from the list). 29 shim verbs now.
 - `omarchy-theme-set`, `-theme-bg-set` (path-validated), `-theme-bg-next` (2026-11-14): wrappers around DMS theme/wallpaper; `bg-set` rejects missing or relative paths to avoid the silent bad-path trap.
+- `omarchy-install`/`omarchy-remove` dispatchers + all upstream
+  `omarchy-install-*`/`omarchy-remove-*` names deployed (symlinks): Arch-specific
+  package installs routed via distrobox (`omarchy-pkg`); `dev-env <lang>` installs
+  toolchains in container; terminal/browser/editor/app/pkg/tui/webapp helpers.
+  Host-only targets (setup/service/security/dictation/boot/preinstalls) print a
+  "Debian host config, not a container package" note and exit 2. `omarchy-tui-*`,
+  `omarchy-webapp-remove-all` implemented. Verified: help/dispatch/dry-run,
+  dev-env zig present, tui install+remove round-trip, host-only guard.
 - Launch verbs (2026-11-14): `omarchy-launch-terminal`, `-launch-editor`, `-launch-tui`, `-launch-or-focus-tui`, `-launch-files` (xdg-terminal-exec/uwsm-app/$TERMINAL/$EDITOR; verified `launch-files /tmp` opened thunar, cwd resolution ok). 42 shim verbs.
 - Web apps (Tier 2, 2026-11-14): `omarchy-launch-webapp`, `-webapp-install`,
   `-webapp-list`, `-webapp-remove`, `-launch-or-focus`. Verified with
