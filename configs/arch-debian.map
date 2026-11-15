@@ -66,6 +66,23 @@ tensaku               aur:tensaku
 ttfx                  aur:ttfx
 omarchy-nvim          skip
 
+
+# --- common CLI/TUI tools (Arch via container, exported to ~/.local/bin) ---
+lazygit               arch:lazygit
+lazydocker            arch:lazydocker
+btop                  arch:btop
+fastfetch             arch:fastfetch
+yazi                  arch:yazi
+mise                  arch:mise
+uv                    arch:uv
+starship              arch:starship
+zellij                arch:zellij
+dust                  arch:dust
+bottom                arch:bottom
+github-cli            arch:github-cli
+glow                  arch:glow
+gum                   arch:gum
+
 # --- no equivalent worth building -----------------------------------------
 omacalc               skip
 omawrite              skip

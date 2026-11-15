@@ -1,10 +1,44 @@
 #!/bin/bash
-# DMS store installs by registry id (not git URL like upstream Omarchy plugins).
-[ $# -gt 0 ] || { echo "usage: omarchy-plugin-add <plugin-id>  (DMS registry id; try: omarchy-plugin-search <term>)" >&2; exit 1; }
-case "$1" in
-  https://*|http://*|git@*|*.git)
-    echo "omarchy-plugin-add: upstream Omarchy adds plugins from a git URL." >&2
-    echo "This layer uses the DMS registry (install by id). Try: omarchy-plugin-search <name>" >&2
-    exit 2 ;;
+# omarchy-plugin-add — install plugin from DMS registry id OR from a git URL.
+# Git-URL path: clone, read plugin.json for id, install into ~/.config/dms/plugins/<id>,
+# restart dms, enable. Works alongside registry plugins.
+set -euo pipefail
+[ $# -gt 0 ] || { echo "usage: omarchy-plugin-add <plugin-id | git-url> [--ref <commit|tag|branch>]" >&2; exit 1; }
+src=$1; shift || true
+ref=""
+if [ "${1:-}" = "--ref" ] && [ -n "${2:-}" ]; then ref=$2; shift 2; fi
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "omarchy-plugin-add: missing $1" >&2; exit 1; }; }
+
+case "$src" in
+  https://*|http://*|git@*|ssh://*|*.git|/*|./*|../*)
+    # git URL or local path
+    need git; need jq
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    echo "[plugin] cloning $src ..."
+    git clone --quiet --depth 1 ${ref:+--branch "$ref"} "$src" "$tmp/p" 2>/dev/null || git clone --quiet "$src" "$tmp/p"
+    [ -n "$ref" ] && (cd "$tmp/p" && git checkout --quiet "$ref" 2>/dev/null || true)
+    [ -f "$tmp/p/plugin.json" ] || { echo "omarchy-plugin-add: no plugin.json in repo" >&2; exit 1; }
+    id=$(jq -r '.id // empty' "$tmp/p/plugin.json")
+    [ -n "$id" ] || { echo "omarchy-plugin-add: plugin.json has no id" >&2; exit 1; }
+    dest="$HOME/.config/dms/plugins/$id"
+    if [ -e "$dest" ]; then
+      echo "omarchy-plugin-add: $id already exists at $dest (remove it first or use plugin-update)" >&2; exit 1
+    fi
+    mkdir -p "$HOME/.config/dms/plugins"
+    # install as a git checkout so updates/checks work
+    git clone --quiet "$src" "$dest"
+    [ -n "$ref" ] && (cd "$dest" && git checkout --quiet "$ref")
+    echo "restarting dms.service (plugin scan happens at startup)"
+    systemctl --user restart dms.service
+    for i in $(seq 1 20); do
+      dms ipc call plugin-scan list >/dev/null 2>&1 && break; sleep 1
+    done
+    dms ipc call plugins enable "$id" >/dev/null 2>&1 || true
+    printf 'plugin %s: %s (%s)\n' "$id" "$(dms ipc call plugins status "$id" 2>&1)" "$src"
+    ;;
+  *)
+    # registry id
+    exec "$(dirname "$0")/omarchy-plugin-install" "$src"
+    ;;
 esac
-exec "$(dirname "$0")/omarchy-plugin-install" "$@"

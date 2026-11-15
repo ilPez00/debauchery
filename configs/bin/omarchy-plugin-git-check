@@ -1,0 +1,36 @@
+#!/bin/bash
+# Check git-backed DMS plugins for upstream updates in parallel.
+# Prints: status  id  local..remote  repo
+set -uo pipefail
+PLUGINS_DIR=${DMS_PLUGINS_DIR:-$HOME/.config/dms/plugins}
+[ -d "$PLUGINS_DIR" ] || { echo "no plugins dir: $PLUGINS_DIR"; exit 0; }
+
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+pids=(); names=()
+for d in "$PLUGINS_DIR"/*/; do
+  [ -d "$d/.git" ] || continue
+  id=$(basename "$d")
+  (
+    cd "$d" || exit 0
+    repo=$(git remote get-url origin 2>/dev/null || echo "?")
+    git fetch --quiet origin 2>/dev/null || { echo "FETCH_FAIL $id - $repo" > "$tmp/$id"; exit 0; }
+    local=$(git rev-parse --short HEAD 2>/dev/null || echo "?")
+    # try upstream of current branch, else origin/HEAD, else origin/master/main
+    up=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)
+    [ -z "$up" ] && up=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null || true)
+    [ -z "$up" ] && up=$(git rev-parse --verify --quiet origin/main >/dev/null && echo origin/main || echo origin/master)
+    remote=$(git rev-parse --short "$up" 2>/dev/null || echo "?")
+    behind=$(git rev-list --count "HEAD..$up" 2>/dev/null || echo "?")
+    ahead=$(git rev-list --count "$up..HEAD" 2>/dev/null || echo "?")
+    if [ "$behind" = "0" ] && [ "$ahead" = "0" ]; then st="UP_TO_DATE"
+    elif [ "$behind" != "0" ] && [ "$ahead" = "0" ]; then st="BEHIND($behind)"
+    elif [ "$behind" = "0" ] && [ "$ahead" != "0" ]; then st="AHEAD($ahead)"
+    else st="DIVERGED($ahead/$behind)"; fi
+    echo "$st $id $local..$remote $repo" > "$tmp/$id"
+  ) &
+  pids+=($!); names+=("$id")
+done
+
+fail=0
+for pid in "${pids[@]}"; do wait "$pid" || fail=1; done
+for id in "${names[@]}"; do [ -f "$tmp/$id" ] && cat "$tmp/$id"; done | sort
