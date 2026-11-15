@@ -14,6 +14,8 @@ alias debst='~/debauchery/install.sh status'
 # --- arch container ---------------------------------------------------------
 if command -v omarchy-arch >/dev/null 2>&1; then
   alias ar='omarchy-arch'                 # shell inside arch-omarchy
+  alias arch='omarchy-arch'
+  alias debian='omarchy-arch --debian'
   alias arb='omarchy-arch --status'       # gateway + container state
   alias aro='omarchy-arch --os'           # prove you are in Arch (uname lies)
   # Debian-first package verbs (apt if a Debian package exists, else container)
