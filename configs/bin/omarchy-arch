@@ -133,7 +133,7 @@ case "$SELF" in
       --status|status) status ;;
       --os|os) require_box; in_box bash -lc '. /etc/os-release && printf "%s\n" "$PRETTY_NAME"' ;;
       --bootstrap-aur|bootstrap-aur) bootstrap_aur ;;
-      "") require_box; exec distrobox enter "$BOX" ;;
+      "") require_box; distrobox enter "$BOX" ;;
       *) in_box "$@" ;;
     esac
     ;;
