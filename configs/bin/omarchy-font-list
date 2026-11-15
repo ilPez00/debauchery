@@ -1,0 +1,2 @@
+#!/bin/bash
+fc-list : family 2>/dev/null | sed 's/,.*//' | sort -u | head -200

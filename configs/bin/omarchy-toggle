@@ -1,0 +1,21 @@
+#!/bin/bash
+# omarchy-toggle — common toggles (mapped to DMS/Hyprland where possible).
+set -euo pipefail
+t=${1:-}
+case "$t" in
+  ""|-h|--help) echo "usage: omarchy-toggle <nightlight|idle|bar|touchpad|layout|notifications|animations|transparency|waybar>"; exit 0 ;;
+  nightlight|night|night-mode) exec omarchy-night-toggle ;;
+  touchpad) shift; exec omarchy-toggle-touchpad "$@" ;;
+  layout|tiling) exec omarchy-layout-toggle ;;
+  notifications|dnd|do-not-disturb) exec omarchy-notifications-toggle ;;
+  idle|idling|screensaver)
+    # best-effort: hypridle inhibit toggle not standardized; report
+    if command -v dms >/dev/null 2>&1; then dms ipc call inhibit toggle 2>/dev/null && exit 0; fi
+    echo "omarchy-toggle $t: no inhibit toggle exposed via dms ipc here" >&2; exit 1 ;;
+  bar|waybar|shell|dms)
+    dms ipc call bar toggle 2>/dev/null || systemctl --user restart dms.service ;;
+  animations)
+    v=$(hyprctl getoption animations:enabled 2>/dev/null | awk '/^int:/{print $2}')
+    if [ "${v:-1}" = "1" ]; then hyprctl keyword animations:enabled 0; echo "animations: off"; else hyprctl keyword animations:enabled 1; echo "animations: on"; fi ;;
+  *) echo "omarchy-toggle: '$t' not implemented on this layer (try: nightlight touchpad layout notifications idle bar animations)" >&2; exit 1 ;;
+esac

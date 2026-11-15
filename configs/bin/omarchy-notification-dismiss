@@ -1,0 +1,2 @@
+#!/bin/bash
+dms ipc call notifications dismissAllPopups 2>/dev/null || dms ipc call notifications clearAll 2>/dev/null || true

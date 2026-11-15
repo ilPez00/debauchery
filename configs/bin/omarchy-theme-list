@@ -1,0 +1,9 @@
+#!/bin/bash
+# DMS theme registry (cached checkout) if available; else report current.
+reg=/tmp/dankdots-plugin-registry/official/themes
+if [ -d "$reg" ]; then
+  ls "$reg" | sort
+else
+  echo "(theme registry not cached; run: dms plugins list  or  omarchy-plugin-search .)"
+  omarchy-theme-current 2>/dev/null || true
+fi

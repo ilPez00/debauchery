@@ -1,0 +1,4 @@
+#!/bin/bash
+printf 'mode: %s\n' "$(dms ipc call theme getMode 2>/dev/null || echo '?')"
+printf 'name: %s\n' "$(dms ipc call settings get currentThemeName 2>/dev/null || echo '?')"
+printf 'wallpaper: %s\n' "$(dms ipc call wallpaper get 2>/dev/null || echo '?')"

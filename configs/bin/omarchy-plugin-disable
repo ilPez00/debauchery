@@ -1,0 +1,3 @@
+#!/bin/bash
+[ $# -gt 0 ] || { echo "usage: omarchy-plugin-disable <id>" >&2; exit 1; }
+dms ipc call plugins disable "$1"

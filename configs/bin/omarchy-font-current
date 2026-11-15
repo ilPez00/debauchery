@@ -1,0 +1,6 @@
+#!/bin/bash
+# Best-effort: DMS/GTK font not uniformly exposed via ipc; report what we can.
+if command -v gsettings >/dev/null 2>&1; then
+  gsettings get org.gnome.desktop.interface font-name 2>/dev/null && exit 0
+fi
+echo "(font info not exposed via dms ipc on this build)"

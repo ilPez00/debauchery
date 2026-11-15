@@ -490,7 +490,13 @@ EOF
   theme-set)
     case "${1:-toggle}" in
       dark|light|toggle) dms theme "$1" ;;
-      *) die "usage: $SELF [dark|light|toggle]" ;;
+      *)
+        # named theme: set currentThemeName in DMS settings (best-effort)
+        name=$1
+        dms settings set currentThemeName "$name" >/dev/null 2>&1 || \
+          command dms ipc call settings set currentThemeName "$name" >/dev/null 2>&1 || \
+          die "could not set theme '$name' (try: omarchy-theme-list)"
+        printf 'theme: %s\n' "$name" ;;
     esac ;;
 
   theme-bg-set)

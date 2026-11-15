@@ -21,10 +21,24 @@ log() { printf '[shims] %s\n' "$*"; }
 
 verbs() { "$SRC" --list; }
 
-# Extra standalone omarchy commands (install/remove/tui/…) in configs/bin.
+# Extra standalone omarchy commands in configs/bin: dispatcher (omarchy),
+# install/remove/tui/webapp helpers, and any omarchy-* command not owned by the
+# omarchy-shim verb list (those are symlinks to omarchy-shim, managed below).
+is_shim_verb() {
+  local name=$1 v
+  for v in $(verbs); do [ "$name" = "omarchy-$v" ] && return 0; done
+  return 1
+}
+
 extras() {
-  (cd "$REPO/configs/bin" && ls omarchy-install omarchy-install-* omarchy-remove omarchy-remove-* \
-      omarchy-tui-* omarchy-webapp-remove-all 2>/dev/null) | sort -u
+  local f b
+  for f in "$REPO"/configs/bin/omarchy "$REPO"/configs/bin/omarchy-*; do
+    [ -e "$f" ] || continue
+    b=$(basename "$f")
+    [ "$b" = "omarchy-shim" ] && continue
+    is_shim_verb "$b" && continue
+    printf '%s\n' "$b"
+  done | sort -u
 }
 
 deploy_extras() {
@@ -61,14 +75,13 @@ uninstall_extras() {
 
 check_extras() {
   local rc=0 name
-  for name in omarchy-install omarchy-remove omarchy-tui-install omarchy-tui-remove omarchy-webapp-remove-all; do
+  for name in omarchy omarchy-install omarchy-remove omarchy-tui-install omarchy-tui-remove omarchy-webapp-remove-all omarchy-version omarchy-update; do
     [ -x "$BIN/$name" ] || { log "FAILED missing $name"; rc=1; }
   done
-  # spot-check a couple of symlinked handlers
-  for name in omarchy-install-dev-env omarchy-remove-dev-env; do
+  for name in omarchy-install-dev-env omarchy-remove-dev-env omarchy-plugin-add omarchy-theme-current; do
     [ -x "$BIN/$name" ] || { log "FAILED missing $name"; rc=1; }
   done
-  [ $rc -eq 0 ] && log "install/remove/tui handlers deployed"
+  [ $rc -eq 0 ] && log "extra omarchy commands deployed"
   return $rc
 }
 

@@ -1,0 +1,6 @@
+#!/bin/bash
+if [ $# -eq 0 ]; then echo "${VISUAL:-${EDITOR:-nvim}}"; exit 0; fi
+# set for future shells via debauchery config hint
+mkdir -p ~/.config/debauchery
+echo "export EDITOR=\"$(printf '%s' "$1")\"" > ~/.config/debauchery/editor.sh
+echo "default editor: $1 (source ~/.config/debauchery/editor.sh in your shell)"

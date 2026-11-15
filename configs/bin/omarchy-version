@@ -1,0 +1,8 @@
+#!/bin/bash
+# omarchy-version — report debauchery layer version (and upstream Omarchy N/A).
+set -euo pipefail
+REPO=${DEBAUCHERY_REPO:-$HOME/debauchery}
+ver=$(tr -d '[:space:]' < "$REPO/VERSION" 2>/dev/null || echo unknown)
+echo "debauchery $ver (Debian + DMS + distrobox)"
+echo "upstream Omarchy: not installed (compat layer)"
+echo "host: $(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}")"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# DMS store installs by registry id (not git URL like upstream Omarchy plugins).
+[ $# -gt 0 ] || { echo "usage: omarchy-plugin-add <plugin-id>  (DMS registry id; try: omarchy-plugin-search <term>)" >&2; exit 1; }
+case "$1" in
+  https://*|http://*|git@*|*.git)
+    echo "omarchy-plugin-add: upstream Omarchy adds plugins from a git URL." >&2
+    echo "This layer uses the DMS registry (install by id). Try: omarchy-plugin-search <name>" >&2
+    exit 2 ;;
+esac
+exec "$(dirname "$0")/omarchy-plugin-install" "$@"

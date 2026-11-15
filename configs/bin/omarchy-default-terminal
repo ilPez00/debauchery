@@ -1,0 +1,14 @@
+#!/bin/bash
+# show/set preferred terminal hint.
+conf=~/.config/xdg-terminals.list
+if [ $# -eq 0 ]; then
+  if [ -r "$conf" ]; then grep -v '^#' "$conf" | head -1; else echo "${TERMINAL:-alacritty}"; fi
+  exit 0
+fi
+mkdir -p ~/.config
+case "$1" in
+  alacritty) id=Alacritty.desktop ;; foot) id=foot.desktop ;; kitty) id=kitty.desktop ;;
+  ghostty) id=com.mitchellh.ghostty.desktop ;; *) id="$1" ;;
+esac
+printf '# Terminal preference (set by omarchy-default-terminal)\n%s\n' "$id" > "$conf"
+echo "default terminal: $id"

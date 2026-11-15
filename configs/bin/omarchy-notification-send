@@ -1,0 +1,4 @@
+#!/bin/bash
+if command -v notify-send >/dev/null 2>&1; then exec notify-send "$@"; fi
+if command -v dms >/dev/null 2>&1; then dms notify "$@" 2>/dev/null && exit 0; fi
+echo "$*" >&2

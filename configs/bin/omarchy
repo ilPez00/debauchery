@@ -1,0 +1,74 @@
+#!/bin/bash
+# omarchy — debauchery's Omarchy-compatible CLI dispatcher (Debian + DMS + distrobox).
+# Routes: omarchy <a> [b [c ...]] -> first existing omarchy-a-b-c..., else omarchy-a-b, else omarchy-a.
+set -uo pipefail
+BIN=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO=${DEBAUCHERY_REPO:-$HOME/debauchery}
+
+die() { printf 'omarchy: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+omarchy — Omarchy-like commands on Debian (debauchery layer)
+
+Usage: omarchy <group|command> [subcommand] [args]
+
+Common:
+  omarchy menu [keybindings|power|clipboard]     shell menus (DMS)
+  omarchy launch <terminal|editor|tui|files|webapp|browser> ...
+  omarchy capture <screenshot|screenrecording|text> [args]
+  omarchy install <name|dev-env|app|pkg|tui|webapp|browser|editor|terminal> [args]
+  omarchy remove  <name|app|pkg|tui|webapp> [args]
+  omarchy pkg     <add|drop|present|missing|aur-add|aur-install|install|remove> ...
+  omarchy plugin  <list|search|install|remove|update|lock|enable|disable> [args]
+  omarchy webapp  <install|list|remove> [args]
+  omarchy tui     <install|remove> [args]
+  omarchy theme   <set|bg-set|bg-next|toggle|current> [args]
+  omarchy toggle  <nightlight|layout|touchpad|notifications|idling> (where supported)
+  omarchy version
+  omarchy update
+  omarchy cmd     <terminal-cwd|present|missing>
+
+Arch-specific package installs run in arch-omarchy (distrobox) via omarchy-pkg.
+Host-only upstream tasks (boot/PAM/security/system services) are reported, not forced.
+Debauchery: ~/debauchery  (./install.sh doctor | status | config | selftest)
+EOF
+}
+
+# resolve longest-prefix command: omarchy a b c -> omarchy-a-b-c | omarchy-a-b c | omarchy-a b c
+if [[ $# -eq 0 || ${1:-} == -h || ${1:-} == --help || ${1:-} == help ]]; then
+  usage; exit 0
+fi
+
+# special top-level conveniences
+case "$1" in
+  menu)   shift; exec "$BIN/omarchy-menu" ${1+"$@"} 2>/dev/null || exec "$BIN/omarchy-menu" ;;
+esac
+
+# try longest match
+args=("$@")
+n=${#args[@]}
+for ((i=n; i>=1; i--)); do
+  name="omarchy-$(IFS=-; echo "${args[*]:0:i}")"
+  if command -v "$name" >/dev/null 2>&1; then
+    exec "$name" "${args[@]:i}"
+  fi
+  # also look relative to this bin dir
+  if [[ -x "$BIN/$name" ]]; then
+    exec "$BIN/$name" "${args[@]:i}"
+  fi
+done
+
+# fallback: omarchy <group> with no direct binary -> show what's available
+group=$1
+shopt -s nullglob 2>/dev/null || true
+matches=("$BIN/omarchy-${group}-"*)
+if (( ${#matches[@]} > 0 )); then
+  echo "omarchy $group: available subcommands:" >&2
+  for m in "${matches[@]}"; do
+    b=$(basename "$m"); echo "  ${b#omarchy-${group}-}" >&2
+  done
+  exit 1
+fi
+
+die "unknown command: $* (try: omarchy --help)"

@@ -1,0 +1,9 @@
+#!/bin/bash
+# Best-effort system font set (GTK). DMS may have its own font settings.
+[ $# -gt 0 ] || { echo "usage: omarchy-font-set <\"Font Family Size\">" >&2; exit 1; }
+font="$*"
+if command -v gsettings >/dev/null 2>&1; then
+  gsettings set org.gnome.desktop.interface font-name "$font" 2>/dev/null && echo "font: $font" && exit 0
+fi
+echo "omarchy-font-set: gsettings not available; font not changed" >&2
+exit 1

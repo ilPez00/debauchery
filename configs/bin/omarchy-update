@@ -1,0 +1,5 @@
+#!/bin/bash
+# omarchy-update — update debauchery layer (git pull --ff-only + re-apply + doctor).
+set -euo pipefail
+REPO=${DEBAUCHERY_REPO:-$HOME/debauchery}
+exec "$REPO/install.sh" update "$@"

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Run user hooks from ~/.config/omarchy/hooks/<name> if present.
+hook=${1:-}; shift || true
+[ -n "$hook" ] || { echo "usage: omarchy-hook <name> [args]" >&2; exit 1; }
+for d in "$HOME/.config/omarchy/hooks/$hook" "$HOME/.config/debauchery/hooks/$hook"; do
+  if [ -x "$d" ]; then exec "$d" "$@"; fi
+  if [ -d "$d" ]; then
+    for f in "$d"/*; do [ -x "$f" ] && "$f" "$@"; done
+    exit 0
+  fi
+done
+# no hook defined is not an error
+exit 0

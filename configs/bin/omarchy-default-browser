@@ -1,0 +1,4 @@
+#!/bin/bash
+if [ $# -eq 0 ]; then xdg-settings get default-web-browser 2>/dev/null; exit 0; fi
+xdg-settings set default-web-browser "$1" 2>/dev/null || xdg-settings set default-web-browser "${1}.desktop"
+echo "default browser: $(xdg-settings get default-web-browser)"

@@ -1,0 +1,3 @@
+#!/bin/bash
+# DMS registry: list/search catalog.
+exec "$(dirname "$0")/omarchy-plugin-search" "${1:-}"
