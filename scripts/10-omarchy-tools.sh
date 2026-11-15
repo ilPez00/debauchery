@@ -85,6 +85,16 @@ export_tools() {
     fi
     path=$(container_bin "$t")
     if [ -z "$path" ]; then
+      # Arch package names can differ from their binary (github-cli -> gh,
+      # bottom -> btm); retry the well-known binary name before giving up.
+      local alias=""
+      case "$t" in
+        github-cli) alias=gh ;;
+        bottom)     alias=btm ;;
+      esac
+      [ -n "$alias" ] && path=$(container_bin "$alias")
+    fi
+    if [ -z "$path" ]; then
       warn "$t: installed but no binary on the container PATH — not exportable"
       rc=1
       continue

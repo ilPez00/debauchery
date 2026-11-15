@@ -1,1 +1,10 @@
-omarchy-install
+#!/bin/bash
+# omarchy-install-and-launch <pkg> [cmd...] — install pkg (omarchy-install
+# routing: apt or arch-omarchy container), then run cmd if given.
+set -euo pipefail
+[ $# -ge 1 ] || { echo "usage: omarchy-install-and-launch <pkg> [cmd...]" >&2; exit 1; }
+pkg=$1; shift
+bin=$(dirname "$0")
+"$bin/omarchy-install" "$pkg"
+[ $# -eq 0 ] && exit 0
+exec "$@"

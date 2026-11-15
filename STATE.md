@@ -173,6 +173,34 @@ should be ported to Lua eventually (see `plans/`).
   "Debian host config, not a container package" note and exit 2. `omarchy-tui-*`,
   `omarchy-webapp-remove-all` implemented. Verified: help/dispatch/dry-run,
   dev-env zig present, tui install+remove round-trip, host-only guard.
+
+## 6e. Audit pass (2026-11-15)
+
+Full sweep: `bash -n` every script (clean), `doctor` (0 fails / 1 warn: ssh),
+`selftest`, `shims --check`, `tools --check`, `bridge --check`, `config`
+no-TTY — all green. Fixes found and applied:
+
+- **Dispatcher `menu` interception bug**: the special `menu)` case ran
+  `omarchy-menu <args>` before longest-prefix resolution, so
+  `omarchy menu keybindings` opened the *root* menu instead of the keybind
+  overlay (`omarchy-menu` is a shim verb that ignores args). Special case
+  removed; `omarchy menu keybindings` → `KEYBINDS_TOGGLE_SUCCESS: hypr`.
+- **`omarchy-install-and-launch`** was a bare symlink to `omarchy-install`
+  (dispatched "and-launch" as a package name). Now a real verb: install via
+  `omarchy-install`, then run the command.
+- **Deployed-drift detection**: `11-omarchy-shims.sh --check` now cmp's every
+  deployed extra against its repo copy and verifies every verb symlink points
+  at `omarchy-shim`. Caught a stale standalone `configs/bin/omarchy-theme-toggle`
+  fighting the shim verb (deleted; shim owns `theme-toggle`).
+- **Stale `.pre-debauchery` backups** in `~/.local/bin` (4) were our own
+  superseded gen-1 scripts and polluted dispatcher group listings
+  (`omarchy plugin` offered `add.pre-debauchery`). Removed; listings clean.
+- **14 newly mapped tools installed + exported** (mise/uv/github-cli needed a
+  `pacman -Syy` mirror refresh first; pacman 404s until then). Exporter now
+  retries Arch-binary aliases: `github-cli`→`gh`, `bottom`→`btm` — both live
+  (`gh 2.104.0`, `btm 0.15.0`). `tools --check` exit 0.
+- Webapp round-trip re-verified (install → list → remove-all → empty).
+- Disk: ~8.4 G free after the tool installs.
 - Launch verbs (2026-11-14): `omarchy-launch-terminal`, `-launch-editor`, `-launch-tui`, `-launch-or-focus-tui`, `-launch-files` (xdg-terminal-exec/uwsm-app/$TERMINAL/$EDITOR; verified `launch-files /tmp` opened thunar, cwd resolution ok). 42 shim verbs.
 - Web apps (Tier 2, 2026-11-14): `omarchy-launch-webapp`, `-webapp-install`,
   `-webapp-list`, `-webapp-remove`, `-launch-or-focus`. Verified with

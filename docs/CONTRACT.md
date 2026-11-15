@@ -70,6 +70,7 @@ is to route packages through `arch-omarchy` (distrobox) via `omarchy-pkg`:
 | `omarchy-install app|pkg <pkg...>` | `omarchy-pkg add` |
 | `omarchy-install tui <name> <cmd> <float\|tile> <icon>` | host `.desktop` launcher (xdg-terminal-exec) |
 | `omarchy-install webapp <name> <url> [icon]` | host web app launcher |
+| `omarchy-install-and-launch <pkg> [cmd...]` | install via the routing above, then run `cmd` if given |
 | `omarchy-tui-install/remove/remove-all` | TUI launcher management on host |
 | `omarchy-remove <name>` / `app|pkg` | `omarchy-pkg drop` or specific handler |
 | `omarchy-webapp-remove-all` | remove all omarchy web app launchers |
@@ -84,7 +85,7 @@ All upstream `omarchy-install-*` / `omarchy-remove-*` names are deployed as
 handlers (symlinks to the dispatchers) so direct calls resolve; unknown names
 fall back to package add/drop in the container.
 
-## Tier 2 — the plugin store, and what is still skipped
+## Tier 2 — plugins, web apps, launch, themes
 
 Omarchy has no plugin store, so there is no upstream verb to copy. These are
 this layer's own names for DMS's store, and they exist because two things go
@@ -99,6 +100,10 @@ and it arrives disabled. Each verb below was exercised on air 2026-11-14.
 | `omarchy-plugin-remove <id>` | disable, uninstall, restart; removing something already absent exits 0 |
 | `omarchy-plugin-update [<id>\|--all]` | no argument means `--all` |
 | `omarchy-plugin-lock` | pins every plugin into `configs/dms-plugins.lock.json` |
+| `omarchy-plugin-add <id \| git-url> [--ref <commit\|tag\|branch>]` | registry id → `plugin-install`; git URL → Omarchy-style clone, read `plugin.json` id, install as a git checkout, restart dms, enable. Refuses an already-present id. |
+| `omarchy-plugin-enable/disable <id>` | direct DMS IPC (note: `dms plugins toggle` is broken in this DMS build — `PLUGIN_TOGGLE_FAILED`; use these) |
+| `omarchy-plugin-git-check` | parallel `git fetch` + status over every git-backed plugin: `UP_TO_DATE \| BEHIND(n) \| AHEAD(n) \| DIVERGED \| FETCH_FAIL  id  local..remote  repo` |
+| `omarchy-plugin-catalog [term]` | alias for `plugin-search` |
 
 Web apps are Tier 2 upstream (`omarchy-launch-webapp`, `omarchy-webapp-install`)
 and they are implemented here, because they need nothing Arch-specific — a
@@ -133,10 +138,14 @@ Not implemented: `omarchy-launch-or-focus-webapp` (it identifies a web app by
 the `crx_<hash>` window class, and chromium on Debian reports class `Chromium`
 for every `--app` window, so the hash never matches).
 
-Still skipped on purpose: `omarchy-install-*`, `omarchy-remove-*`, gaming,
-dictation, `linux-omarchy`, PAM and portal steps. They assume Arch, systemd
-system units and Omarchy's own shell; none of them are needed for the
-interface, and several are the exact steps that break a working session.
+Still skipped on purpose: `setup-*`, `service-*`, `security-*`, `dictation-*`,
+`direct-boot`, `preinstalls` (host system config, not packages — guarded, exit 2),
+`linux-omarchy` (the Arch kernel), PAM and portal rewrites, gaming GPU/driver
+kernel steps (the package name itself still installs in the container),
+Apple-N1X/Windows-VM/hibernation/snapshot tooling, and Omarchy's agent-internal
+binaries. They assume Arch, systemd system units and Omarchy's own shell; none
+of them are needed for the interface, and several are the exact steps that break
+a working session.
 
 ## Keybind parity
 

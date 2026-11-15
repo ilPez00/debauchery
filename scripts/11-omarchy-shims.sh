@@ -75,13 +75,16 @@ uninstall_extras() {
 
 check_extras() {
   local rc=0 name
-  for name in omarchy omarchy-install omarchy-remove omarchy-tui-install omarchy-tui-remove omarchy-webapp-remove-all omarchy-version omarchy-update; do
-    [ -x "$BIN/$name" ] || { log "FAILED missing $name"; rc=1; }
+  # every extra must be deployed AND match its repo copy (catches repo edits
+  # made after the last deploy; cmp follows symlinks to their targets).
+  for name in $(extras); do
+    if [ ! -e "$BIN/$name" ]; then
+      log "FAILED missing $name"; rc=1
+    elif ! cmp -s "$REPO/configs/bin/$name" "$BIN/$name"; then
+      log "FAILED drift: $name differs from repo copy (redeploy to fix)"; rc=1
+    fi
   done
-  for name in omarchy-install-dev-env omarchy-remove-dev-env omarchy-plugin-add omarchy-theme-current; do
-    [ -x "$BIN/$name" ] || { log "FAILED missing $name"; rc=1; }
-  done
-  [ $rc -eq 0 ] && log "extra omarchy commands deployed"
+  [ $rc -eq 0 ] && log "extra omarchy commands deployed (match repo)"
   return $rc
 }
 
@@ -124,7 +127,12 @@ uninstall_all() {
 check() {
   local rc=0 v missing=""
   for v in $(verbs); do
-    [ -x "$BIN/omarchy-$v" ] || missing="$missing omarchy-$v"
+    # a verb must be a symlink to omarchy-shim: an executable of any other
+    # origin would be deployed drift, not the shim (e.g. the old standalone
+    # omarchy-theme-toggle that fought the verb loop).
+    if [ ! -L "$BIN/omarchy-$v" ] || [ "$(readlink "$BIN/omarchy-$v")" != omarchy-shim ]; then
+      missing="$missing omarchy-$v"
+    fi
   done
   if [ -n "$missing" ]; then
     log "FAILED missing verbs:$missing"

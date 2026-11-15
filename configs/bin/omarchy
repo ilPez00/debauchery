@@ -40,11 +40,6 @@ if [[ $# -eq 0 || ${1:-} == -h || ${1:-} == --help || ${1:-} == help ]]; then
   usage; exit 0
 fi
 
-# special top-level conveniences
-case "$1" in
-  menu)   shift; exec "$BIN/omarchy-menu" ${1+"$@"} 2>/dev/null || exec "$BIN/omarchy-menu" ;;
-esac
-
 # try longest match
 args=("$@")
 n=${#args[@]}
