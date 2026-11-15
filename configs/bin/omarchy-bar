@@ -1,0 +1,23 @@
+#!/bin/bash
+# omarchy-bar — dankbar control (DMS). DMS's bar IPC needs a selector
+# (index|id|name) + value; default is the first bar. Override with
+# OMARCHY_BAR="name Main Bar" or per-call: omarchy-bar toggle index 1.
+set -euo pipefail
+sel=${OMARCHY_BAR:-index 0}
+cmd=${1:-toggle}
+case "$cmd" in
+  index|id|name) sel="$1 $2"; cmd=${3:-toggle} ;;
+esac
+case "$cmd" in
+  toggle)   exec dms ipc call bar toggle $sel ;;
+  hide)     exec dms ipc call bar hide $sel ;;
+  show)     exec dms ipc call bar reveal $sel ;;
+  reveal)   exec dms ipc call bar toggleReveal $sel ;;
+  autohide) exec dms ipc call bar toggleAutoHide $sel ;;
+  status)   exec dms ipc call bar status $sel ;;
+  position) exec dms ipc call bar getPosition $sel ;;
+  setpos|set-position)
+    [ -n "${4:-}" ] || { echo "usage: omarchy-bar setpos index 0 top|bottom|left|right" >&2; exit 1; }
+    exec dms ipc call bar setPosition "$1" "$2" "$4" ;;
+  *) echo "usage: omarchy-bar [toggle|hide|show|reveal|autohide|status|position] [index|id|name <val>]" >&2; exit 1 ;;
+esac

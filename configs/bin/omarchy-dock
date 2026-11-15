@@ -1,0 +1,10 @@
+#!/bin/bash
+# omarchy-dock — DMS dock control.
+set -euo pipefail
+case "${1:-toggle}" in
+  toggle)   exec dms ipc call dock toggle ;;
+  status)   exec dms ipc call dock status ;;
+  autohide) exec dms ipc call dock toggleAutoHide ;;
+  edit)     exec dms ipc call dock edit ;;
+  *) echo "usage: omarchy-dock [toggle|status|autohide|edit]" >&2; exit 1 ;;
+esac
