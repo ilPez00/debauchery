@@ -60,6 +60,10 @@ deploy_extras() {
       install -Dm755 "$src" "$dst" && log "deployed $dst"
     fi
   done
+  # ArcoLinux-style alias: arch-menu -> omarchy-rice
+  if [ -x "$BIN/omarchy-rice" ] && [ "$(readlink -f "$BIN/arch-menu" 2>/dev/null)" != "$BIN/omarchy-rice" ]; then
+    ln -sfn omarchy-rice "$BIN/arch-menu" && log "linked $BIN/arch-menu -> omarchy-rice"
+  fi
 }
 
 uninstall_extras() {

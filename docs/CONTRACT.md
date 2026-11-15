@@ -116,6 +116,13 @@ chromium-family browser with `--app` and a `.desktop` file.
 | `omarchy-webapp-list` | name + url of every launcher whose `Exec` is `omarchy-launch-webapp` |
 | `omarchy-webapp-remove <name>` | deletes the launcher and its icon; refuses a `.desktop` that is not a web app |
 | `omarchy-launch-or-focus <class> <cmd...>` | focuses the first window whose class contains `<class>`, otherwise runs the command |
+| `omarchy-dock [toggle\|status\|autohide\|edit]` | DMS dock; verified `DOCK_HIDE_SUCCESS`/`DOCK_SHOW_SUCCESS` |
+| `omarchy-bar` | dankbar control; DMS bar IPC needs a selector (`index\|id\|name` + value) — defaults to `index 0`, override with `OMARCHY_BAR` or per-call args |
+| `omarchy-rice` / `arch-menu` | ArcoLinux-style toggle menu (SUPER+M, also at login): shell dms↔noctalia, menus, bar, dock, theme, binds profile, login on/off. Headless actions: `arch-menu <action> [arg]` |
+
+Launcher plugins open from the shell: `dms ipc call launcher openQuery <term>`
+(prefills the query; the launcher shows plugin results). Bar-widget plugins
+have no IPC — they are added to the bar through DMS's bar edit UI.
 | `omarchy-launch-terminal [dir]` | opens `$TERMINAL` / `xdg-terminal-exec` in `dir` (default: `cmd-terminal-cwd`) via `uwsm-app` when present |
 | `omarchy-launch-editor [path]` | `$VISUAL`/`$EDITOR` (default `nvim`); TUI editors run via `launch-tui`, GUI editors detached |
 | `omarchy-launch-tui <cmd> [args]` | `xdg-terminal-exec --app-id=org.omarchy.<cmd> -e …` (fallback: `$TERMINAL -e`) |

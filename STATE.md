@@ -201,6 +201,31 @@ no-TTY — all green. Fixes found and applied:
   (`gh 2.104.0`, `btm 0.15.0`). `tools --check` exit 0.
 - Webapp round-trip re-verified (install → list → remove-all → empty).
 - Disk: ~8.4 G free after the tool installs.
+
+## 6f. arch menu (2026-11-15)
+
+ArcoLinux-style post-login toggle menu: `omarchy-rice` (alias `arch-menu`,
+SUPER+M). Whiptail loop in a terminal; every action also callable headless
+(`arch-menu shell noctalia`, `arch-menu theme dark`, `arch-menu bar autohide`).
+
+- **Shell toggle** (the real "change menus"): `dms.service` ↔
+  `noctalia.service` — both systemd user units on `graphical-session.target`
+  (noctalia 5.4.1 installed, unit verified; the niri-noctalia session does the
+  same swap). Symmetric and reversible from the menu.
+- **Menus**: opens dankMenu / spotlight / launcher / powermenu / keybind
+  cheatsheet over DMS IPC (all verified live).
+- **Bar/dock**: wraps `omarchy-bar` / `omarchy-dock` (DMS selector IPC).
+- **Theme**: dark/light/wallpaper-next/pick-from-list (`omarchy theme list`).
+- **Binds**: niri ↔ omarchy profile switch via `install.sh binds` (verified:
+  config ok, 140 binds live).
+- **Login**: `--login` waits 5 s then opens the menu unless
+  `~/.config/debauchery/rice.conf` has `RICE_AT_LOGIN=0` (default on; toggle
+  from the menu or `arch-menu login off`). `--install` idempotently adds the
+  SUPER+M keybind and the autostart `exec-once` line.
+- Deployed: `scripts/11-omarchy-shims.sh` also links `arch-menu → omarchy-rice`.
+
+Not live-tested on purpose: the dms↔noctalia switch itself (disruptive
+mid-session; swap is the same one the niri-noctalia session performs).
 - Launch verbs (2026-11-14): `omarchy-launch-terminal`, `-launch-editor`, `-launch-tui`, `-launch-or-focus-tui`, `-launch-files` (xdg-terminal-exec/uwsm-app/$TERMINAL/$EDITOR; verified `launch-files /tmp` opened thunar, cwd resolution ok). 42 shim verbs.
 - Web apps (Tier 2, 2026-11-14): `omarchy-launch-webapp`, `-webapp-install`,
   `-webapp-list`, `-webapp-remove`, `-launch-or-focus`. Verified with

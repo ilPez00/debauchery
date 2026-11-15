@@ -1,0 +1,176 @@
+#!/bin/bash
+# omarchy-rice (arch-menu) — ArcoLinux-style toggle menu for this session.
+#
+#   omarchy-rice                the whiptail menu (run it in a terminal)
+#   omarchy-rice --login        autostart path: wait for the shell, open menu
+#                               unless RICE_AT_LOGIN=0
+#   omarchy-rice --install      idempotent: SUPER+M keybind + login autostart
+#   omarchy-rice <action> [arg] headless, same actions the menu runs:
+#     shell [dms|noctalia]      menus [dankmenu|spotlight|launcher|powermenu|keybinds]
+#     bar [toggle|autohide|status]   dock [toggle|status]
+#     theme [dark|light|next|<name>] binds [profile]
+#     login [on|off]            show/hide this menu at login
+set -uo pipefail
+
+CONF_DIR=$HOME/.config/debauchery
+CONF=$CONF_DIR/rice.conf
+TERMINAL_BIN=${RICE_TERMINAL:-alacritty}
+
+log() { printf 'arch-menu: %s\n' "$*" >&2; }
+
+conf_get() { # key default
+  grep -m1 "^$1=" "$CONF" 2>/dev/null | cut -d= -f2- || echo "$2"
+}
+conf_set() {
+  mkdir -p "$CONF_DIR"
+  if grep -q "^$1=" "$CONF" 2>/dev/null; then
+    sed -i "s/^$1=.*/$1=$2/" "$CONF"
+  else
+    printf '%s=%s\n' "$1" "$2" >> "$CONF"
+  fi
+}
+
+active_shell() { systemctl --user is-active dms.service 2>/dev/null | grep -q active && echo dms || echo noctalia; }
+
+shell_switch() { # dms|noctalia
+  local want=${1:-}
+  [ "$want" = dms ] || [ "$want" = noctalia ] || want=$([ "$(active_shell)" = dms ] && echo noctalia || echo dms)
+  if [ "$want" = dms ]; then
+    systemctl --user disable --now noctalia.service 2>/dev/null
+    systemctl --user enable --now dms.service
+  else
+    systemctl --user disable --now dms.service 2>/dev/null
+    systemctl --user enable --now noctalia.service
+  fi
+  log "shell: $(active_shell) active"
+}
+
+open_menu() { # dankmenu|spotlight|launcher|powermenu|keybinds
+  case "$1" in
+    dankmenu)   dms ipc call dankMenu toggle root ;;
+    spotlight)  dms ipc call spotlight toggle ;;
+    launcher)   dms ipc call launcher toggle ;;
+    powermenu)  dms ipc call powermenu toggle ;;
+    keybinds)   dms ipc call keybinds toggle hypr ;;
+  esac
+}
+
+theme_pick() { # dark|light|next|<name>
+  case "$1" in
+    dark|light) dms theme "$1" ;;
+    next)       omarchy theme bg-next ;;
+    *)          omarchy theme set "$1" ;;
+  esac
+}
+
+binds_switch() {
+  local now
+  now=$(grep -m1 '^DEBAUCHERY_BINDS=' "$HOME/.config/debauchery/config" 2>/dev/null | cut -d= -f2-)
+  now=${now:-niri}
+  case "${1:-}" in
+    niri|omarchy) now=$1 ;;
+    *) [ "$now" = niri ] && now=omarchy || now=niri ;;
+  esac
+  REPO=${DEBAUCHERY_REPO:-$HOME/debauchery}
+  "$REPO/install.sh" binds "$now" && log "binds profile: $now"
+}
+
+do_install() {
+  # keybind: SUPER+M opens the menu in a terminal
+  local binds=$HOME/.config/hypr/binds.conf
+  local kb='bind = SUPER, M, exec, alacritty --class rice -e omarchy-rice'
+  if [ -f "$binds" ] && ! grep -qF 'omarchy-rice' "$binds"; then
+    printf '\n# arch menu (omarchy-rice)\n%s\n' "$kb" >> "$binds"
+    log "keybind added: SUPER+M -> arch menu"
+    hyprctl reload >/dev/null 2>&1 || true
+  fi
+  # login autostart
+  local as=$HOME/.config/hypr/autostart.conf
+  local ex='exec-once = alacritty --class rice -e omarchy-rice --login'
+  if [ -f "$as" ] && ! grep -qF 'omarchy-rice' "$as"; then
+    printf '\n# arch menu after login\n%s\n' "$ex" >> "$as"
+    log "autostart added: menu shows at login (turn off: arch-menu login off)"
+  fi
+}
+
+menu_loop() {
+  while :; do
+    choice=$(whiptail --title "arch menu — debauchery" \
+      --menu "shell: $(active_shell)   (Esc = quit)" 0 0 0 \
+      shell      "switch shell: dms ↔ noctalia" \
+      menus      "open a menu: dankMenu / spotlight / launcher / powermenu / keybinds" \
+      bar        "bar: toggle / autohide / status" \
+      dock       "dock: toggle / status" \
+      theme      "theme: dark / light / wallpaper / pick from 49" \
+      binds      "keybind profile: niri ↔ omarchy" \
+      login      "show this menu at login: $(conf_get RICE_AT_LOGIN 1)" \
+      3>&1 1>&2 2>&3) || { clear; exit 0; }
+    case "$choice" in
+      shell)
+        sh=$(whiptail --title "arch menu — shell" --menu "running: $(active_shell)" 0 0 0 \
+          dms "DankMaterialShell (current default)" \
+          noctalia "Noctalia shell" \
+          3>&1 1>&2 2>&3) || continue
+        if whiptail --title "arch menu" --yesno "Switch shell to $sh?\n(dms/noctalia services swap — reversible here)" 8 60; then
+          shell_switch "$sh"
+        fi ;;
+      menus)
+        m=$(whiptail --title "arch menu — menus" --menu "open which menu?" 0 0 0 \
+          dankmenu "dankMenu app menu (SUPER+Space)" \
+          spotlight "spotlight quick search" \
+          launcher "app launcher" \
+          powermenu "power menu" \
+          keybinds "keybind cheatsheet" \
+          3>&1 1>&2 2>&3) || continue
+        clear; open_menu "$m" ;;
+      bar)
+        b=$(whiptail --title "arch menu — bar" --menu "bar: $(omarchy bar status)" 0 0 0 \
+          toggle "show/hide the bar" \
+          autohide "auto-hide on/off" \
+          status "report state" \
+          3>&1 1>&2 2>&3) || continue
+        omarchy bar "$b" ;;
+      dock) omarchy dock toggle ;;
+      theme)
+        t=$(whiptail --title "arch menu — theme" --menu "current: $(omarchy theme current 2>/dev/null | sed -n 's/name: //p')" 0 0 0 \
+          dark "dark mode" \
+          light "light mode" \
+          next "next wallpaper" \
+          pick "choose from the theme list" \
+          3>&1 1>&2 2>&3) || continue
+        if [ "$t" = pick ]; then
+          pick=$(whiptail --title "arch menu — theme pick" --menu "theme name" 20 70 12 \
+            $(omarchy theme list 3>/dev/null | sed 's/ /_/g;s/.*/& &/' ) \
+            3>&1 1>&2 2>&3) || continue
+          theme_pick "${pick//_/ }"
+        else theme_pick "$t"; fi ;;
+      binds) binds_switch "" ;;
+      login)
+        [ "$(conf_get RICE_AT_LOGIN 1)" = 1 ] && conf_set RICE_AT_LOGIN 0 || conf_set RICE_AT_LOGIN 1
+        log "show at login: $(conf_get RICE_AT_LOGIN 1)" ;;
+    esac
+  done
+}
+
+case "${1:-}" in
+  --install) do_install ;;
+  --login)
+    sleep 5
+    [ "$(conf_get RICE_AT_LOGIN 1)" = 1 ] || exit 0
+    command -v whiptail >/dev/null || exit 0
+    menu_loop ;;
+  "") menu_loop ;;
+  shell)     shell_switch "${2:-}" ;;
+  menus)     open_menu "${2:-dankmenu}" ;;
+  bar)       omarchy bar "${2:-toggle}" ;;
+  dock)      omarchy dock "${2:-toggle}" ;;
+  theme)     theme_pick "${2:-dark}" ;;
+  binds)     binds_switch "${2:-}" ;;
+  login)
+    case "${2:-}" in
+      on)  conf_set RICE_AT_LOGIN 1 ;;
+      off) conf_set RICE_AT_LOGIN 0 ;;
+    esac
+    log "show at login: $(conf_get RICE_AT_LOGIN 1)" ;;
+  *) sed -n '2,17p' "$0"; exit 1 ;;
+esac
