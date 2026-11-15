@@ -13,6 +13,14 @@
       "repo": "https://github.com/arcatva/dms-battery-plus",
       "commit": "4e653d09174e1edc260f279c42ec2477b6fb2e24"
     },
+    "caffeineRedesigned": {
+      "repo": "https://github.com/JDKamalakar/DMS-Caffeine",
+      "commit": "9ee45ed44e90c3c8f5433141795bbe6596531865"
+    },
+    "calculator": {
+      "repo": "https://github.com/rochacbruno/DankCalculator",
+      "commit": "a27b80ad8c3dd42da11af83461674fb362817515"
+    },
     "cavaVisualizer": {
       "repo": "https://github.com/ernestowgg/cava-visualizer",
       "commit": "2d08bef95bc7cd170ad5730a27791c9af6d80a52"
@@ -25,6 +33,10 @@
     "cpuThermalIndicator": {
       "repo": "https://github.com/zhtlancer/dms-cpu-thermal-indicator.git",
       "commit": "261457e37c40c9560a4649c4bd92715c315683ad"
+    },
+    "dankCalendarAgenda": {
+      "repo": "https://github.com/arqueon/dms-dankcalendar",
+      "commit": "94a72490633e426093f4d45dab7ec43bebd699c7"
     },
     "dankKDEConnect": {
       "repo": "https://github.com/duxlabs-dev/dux-plugins",
