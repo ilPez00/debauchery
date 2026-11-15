@@ -45,13 +45,14 @@ shell_switch() { # dms|noctalia
   log "shell: $(active_shell) active"
 }
 
-open_menu() { # dankmenu|spotlight|launcher|powermenu|keybinds
+open_menu() { # dankmenu|spotlight|launcher|powermenu|keybinds|notes
   case "$1" in
     dankmenu)   dms ipc call dankMenu toggle root ;;
     spotlight)  dms ipc call spotlight toggle ;;
     launcher)   dms ipc call launcher toggle ;;
     powermenu)  dms ipc call powermenu toggle ;;
     keybinds)   dms ipc call keybinds toggle hypr ;;
+    notes)      dms ipc call notepad toggle ;;
   esac
 }
 
@@ -121,6 +122,7 @@ menu_loop() {
           launcher "app launcher" \
           powermenu "power menu" \
           keybinds "keybind cheatsheet" \
+          notes "notepad (sticky notes)" \
           3>&1 1>&2 2>&3) || continue
         clear; open_menu "$m" ;;
       bar)
