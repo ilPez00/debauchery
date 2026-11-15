@@ -79,6 +79,7 @@ launch-browser
 plugin-list plugin-install plugin-remove plugin-update plugin-lock
 plugin-search
 launch-webapp webapp-install webapp-list webapp-remove launch-or-focus
+launch-terminal launch-editor launch-tui launch-or-focus-tui launch-files
 theme-set theme-bg-set theme-bg-next"
 
 # step <arg> -> "<op> <value>" for the dms brightness/audio verbs. The dms
@@ -131,6 +132,11 @@ omarchy-shim — Omarchy verbs on DMS + Debian (Tier 1)
   webapp-install <name> <url> [icon]   create the launcher (favicon fetched)
   webapp-list / webapp-remove <name>
   launch-or-focus <class> <cmd...>     focus that window class, else run cmd
+  launch-terminal [dir]           open terminal (in dir, default cwd of focus)
+  launch-editor [path]            $EDITOR/$VISUAL, TUI editors in a terminal
+  launch-tui <cmd> [args...]      run command in a terminal window
+  launch-or-focus-tui <cmd> [args...]  focus its terminal window, else launch
+  launch-files [path]             open file manager (default: cwd of focus)
   theme-set [dark|light|toggle]
   theme-bg-set <image>            absolute path; validated before it is applied
   theme-bg-next                   next wallpaper in the rotation
@@ -428,6 +434,57 @@ EOF
     else
       exec "$@"
     fi ;;
+
+  # --- launch: terminal / editor / tui / files ------------------------------
+  launch-terminal)
+    dir=${1:-$("$HOME/.local/bin/omarchy-cmd-terminal-cwd" 2>/dev/null || printf '%s' "$HOME")}
+    [ -d "$dir" ] || dir=$HOME
+    term=${TERMINAL:-}
+    if [ -z "$term" ]; then
+      for c in xdg-terminal-exec alacritty kitty foot gnome-terminal; do
+        command -v "$c" >/dev/null 2>&1 && { term=$c; break; }
+      done
+    fi
+    [ -n "$term" ] || die "no terminal found (set \$TERMINAL)"
+    if command -v uwsm-app >/dev/null 2>&1; then
+      exec uwsm-app -- "$term" --working-directory "$dir"
+    fi
+    exec "$term" --working-directory "$dir" ;;
+
+  launch-tui)
+    [ $# -gt 0 ] || die "usage: $SELF <command> [args...]"
+    app="org.omarchy.$(basename "$1")"
+    if command -v xdg-terminal-exec >/dev/null 2>&1; then
+      exec setsid uwsm-app -- xdg-terminal-exec --app-id="$app" -e "$@"
+    fi
+    # fallback: terminal -e
+    term=${TERMINAL:-alacritty}
+    command -v "$term" >/dev/null 2>&1 || term=$(command -v alacritty kitty foot 2>/dev/null | head -1)
+    [ -n "$term" ] || die "no terminal for TUI"
+    exec setsid "$term" -e "$@" ;;
+
+  launch-or-focus-tui)
+    [ $# -gt 0 ] || die "usage: $SELF <command> [args...]"
+    app="org.omarchy.$(basename "$1")"
+    exec "$HOME/.local/bin/omarchy-launch-or-focus" "$app" "$HOME/.local/bin/omarchy-launch-tui" "$@" ;;
+
+  launch-editor)
+    ed=${VISUAL:-${EDITOR:-}}
+    [ -n "$ed" ] || ed=nvim
+    case "$ed" in
+      nvim|vim|vi|nano|micro|hx|helix|fresh|kak|emacsclient)
+        exec "$HOME/.local/bin/omarchy-launch-tui" "$ed" "$@" ;;
+      *)
+        if command -v uwsm-app >/dev/null 2>&1; then
+          exec uwsm-app -- "$ed" "$@"
+        fi
+        exec "$ed" "$@" ;;
+    esac ;;
+
+  launch-files)
+    dir=${1:-$("$HOME/.local/bin/omarchy-cmd-terminal-cwd" 2>/dev/null || printf '%s' "$HOME")}
+    [ -e "$dir" ] || dir=$HOME
+    exec xdg-open "$dir" ;;
 
   # --- look: mode and background --------------------------------------------
   theme-set)

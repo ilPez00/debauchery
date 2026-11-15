@@ -82,6 +82,11 @@ chromium-family browser with `--app` and a `.desktop` file.
 | `omarchy-webapp-list` | name + url of every launcher whose `Exec` is `omarchy-launch-webapp` |
 | `omarchy-webapp-remove <name>` | deletes the launcher and its icon; refuses a `.desktop` that is not a web app |
 | `omarchy-launch-or-focus <class> <cmd...>` | focuses the first window whose class contains `<class>`, otherwise runs the command |
+| `omarchy-launch-terminal [dir]` | opens `$TERMINAL` / `xdg-terminal-exec` in `dir` (default: `cmd-terminal-cwd`) via `uwsm-app` when present |
+| `omarchy-launch-editor [path]` | `$VISUAL`/`$EDITOR` (default `nvim`); TUI editors run via `launch-tui`, GUI editors detached |
+| `omarchy-launch-tui <cmd> [args]` | `xdg-terminal-exec --app-id=org.omarchy.<cmd> -e …` (fallback: `$TERMINAL -e`) |
+| `omarchy-launch-or-focus-tui <cmd> [args]` | focus window class `org.omarchy.<cmd>`, else `launch-tui` |
+| `omarchy-launch-files [path]` | `xdg-open` path (default: `cmd-terminal-cwd`) → default file manager |
 
 Theme verbs (safe wrappers around DMS IPC):
 
