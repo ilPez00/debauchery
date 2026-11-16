@@ -71,6 +71,7 @@ omarchy-arch — run things in the arch-omarchy container
   omarchy-arch                interactive shell
   omarchy-arch --status       reachability report
   omarchy-arch --os           the container's own OS (uname shows the host kernel)
+  omarchy-arch --stop         stop the container (kill the sandbox; restarts on next use)
   omarchy-arch --bootstrap-aur   install paru + yay (needs network)
 
 aliases: pacman, yay, paru — same gateway
@@ -133,6 +134,7 @@ case "$SELF" in
       --status|status) status ;;
       --os|os) require_box; in_box bash -lc '. /etc/os-release && printf "%s\n" "$PRETTY_NAME"' ;;
       --bootstrap-aur|bootstrap-aur) bootstrap_aur ;;
+      --stop|stop) require_box; distrobox stop "$BOX" --yes ;;
       "") require_box; distrobox enter "$BOX" ;;
       *) in_box "$@" ;;
     esac

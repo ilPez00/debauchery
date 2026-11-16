@@ -55,6 +55,19 @@ Package verbs live in `configs/bin/omarchy-pkg` (see `DISTROBOX.md` §12):
 `add`, `drop`, `present`, `missing`, `install`, `remove`, `aur-add`,
 `aur-install`, plus `pacman` / `yay` / `paru` shims into `arch-omarchy`.
 
+Container gateway (`omarchy-arch`, alias `arch`; `ar` is the short form):
+
+| Command | Behavior |
+|---|---|
+| `omarchy-arch` | interactive Arch shell (`distrobox enter`); `exit` / `debian` returns to the host shell |
+| `omarchy-arch --stop` (alias `archstop`) | stop the container — the sandbox is killed; it restarts on next use |
+| `omarchy-arch --status` (alias `arb`) | host + container + gateway state |
+| `omarchy-arch --os` (alias `aro`) | the container's own OS (uname shows the host kernel) |
+| `omarchy-arch --bootstrap-aur` | install `paru` + `yay` in the container (needs network) |
+
+Terminal keys (omarchy profile): `SUPER+T` = Arch container shell,
+`SUPER+R` = Debian host shell, `SUPER+Return` = Debian host shell.
+
 ## Install / remove / TUI (Arch-specific via distrobox)
 
 `omarchy-install` and `omarchy-remove` dispatch to `omarchy-install-<name>` /
@@ -164,9 +177,9 @@ Switch: `./install.sh binds omarchy` — back: `./install.sh binds niri`.
 ### Matches
 
 `SUPER+Space` menu · `SUPER+Q`/`SUPER+W` close · `SUPER+F` fullscreen ·
-`SUPER+T` float · `SUPER+J` split · `SUPER+K` keybindings · `SUPER+L` layout
+`SUPER+J` split · `SUPER+K` keybindings · `SUPER+L` layout
 cycle · `SUPER+P` pseudo · `SUPER+S` scratchpad · `SUPER+grave` quake console ·
-`SUPER+1..9` workspaces · `SUPER+Tab` next workspace · `SUPER+Return` terminal ·
+`SUPER+1..9` workspaces · `SUPER+Tab` next workspace · `SUPER+Return` host terminal ·
 `ALT+Tab` cycle · `PRINT` screenshot.
 
 ### Deviations, and why
@@ -180,9 +193,11 @@ cycle · `SUPER+P` pseudo · `SUPER+S` scratchpad · `SUPER+grave` quake console
 | D5 | `SUPER+E` | unbound | browser | kept from air's habit; costs nothing |
 | D6 | `SUPER+A` | universal select-all | control centre | same key-forwarding reason as D2 |
 | D7 | `SUPER+X` | universal cut | power menu | same; `omarchy-menu-power` lives on `SUPER+ESCAPE` |
+| D8 | `SUPER+T` | float toggle | Arch container terminal (`alacritty -e omarchy-arch`) | air's terminal split: T = Arch box, R = Debian host |
+| D9 | `SUPER+R` | resize submap | host (Debian) terminal | requested; resize moved to `SUPER+SHIFT+R` |
 
 Everything else is the niri profile's problem, not this one: `binds niri` restores
-`H/J/K/L` focus, `SUPER+T` terminal and the rest exactly as they were.
+`H/J/K/L` focus and the rest exactly as they were.
 
 ## Stability budget
 
