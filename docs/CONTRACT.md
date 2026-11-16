@@ -174,6 +174,9 @@ upstream `config/hypr/default/bindings/{tiling,utilities,media,clipboard}.lua`.
 
 Switch: `./install.sh binds omarchy` — back: `./install.sh binds niri`.
 
+The active session config is `configs/hypr/hyprland.lua` (see `docs/LUA-PORT.md`);
+the hyprlang profiles are the fallback and the `install.sh binds` target.
+
 ### Matches
 
 `SUPER+Space` menu · `SUPER+Q`/`SUPER+W` close · `SUPER+F` fullscreen ·

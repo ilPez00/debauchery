@@ -27,7 +27,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 |---|---|
 | `STATE.md` | **the only status document**: verified host state, packages, configs, DMS, distrobox, interface layer, disk, pending |
 | `docs/CONTRACT.md` | what "feels like Omarchy" means here: verb mapping, keybind parity, deviations, stability budget |
-| `docs/LUA-PORT.md` | why `hyprland.lua` is the one missing piece: evidence, dispatcher mapping, the gate |
+| `docs/LUA-PORT.md` | Lua config port: status, dispatcher mapping, activation and rollback |
 | `docs/INSTALL.md` | profiles, flags, config keys, what lands where, verification gates |
 | `docs/TROUBLESHOOTING.md` | measured symptoms and fixes (installer, container, keys, shell) |
 | `AGENTS.md` | non-interactive contract for agents: allowed commands, exit codes, never-do list |
@@ -43,7 +43,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | Script | What it does |
 |---|---|
 | `scripts/01-hyprland-install.sh` | Install Hyprland + session stack + Rust + distrobox/podman (root) |
-| `scripts/02-hyprland-config.sh` | Deploy `configs/hypr/*.conf` → `~/.config/hypr/` (backs up first) |
+| `scripts/02-hyprland-config.sh` | Deploy `configs/hypr/*.conf` + `hyprland.lua` → `~/.config/hypr/` (backs up first) |
 | `scripts/03-arch-distrobox.sh` | Create + provision the Arch Distrobox (fixes sudo, installs toolchain) |
 | `scripts/04-disk-reclaim.sh` | Reclaim disk (caches + re-downloadable firmware tars; `--with-root` for the root tier) |
 | `scripts/05-function-row.sh` | MacBook F1–F12 / fnmode guidance (1 = macOS-like, 2 = current) |
@@ -53,6 +53,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `scripts/09-ssh-aliases.sh` | Fleet SSH short hops → `~/.config/fleet/ssh-aliases.zsh`, sourced from `~/.zshrc` (`--check`, `--uninstall`) |
 | `scripts/10-omarchy-tools.sh` | Install the map's `arch:`/`aur:` Omarchy tools in the container and export the binaries to `~/.local/bin` (`--dry-run`, `--check`, `--export-only`) |
 | `scripts/11-omarchy-shims.sh` | Deploy `omarchy-shim` + the 23 `omarchy-*` verb symlinks (`--check`, `--uninstall`) |
+| `scripts/12-gen-lua-binds.py` | Regenerate the Lua bind block from `hyprctl binds -j` after a keymap change |
 | `scripts/backup-desktop.sh` | Back up desktop configs before changes |
 | `scripts/create-arch-distrobox.sh` | Thin wrapper for the distrobox create step |
 
@@ -66,7 +67,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `install.sh` | The entrypoint: install / update / doctor / status / binds / set / uninstall / TUI menu |
 | `modules.conf` | Module table: id, script, scope, profiles, check — the single source of order |
 | `VERSION` | Version printed by `install.sh --help`, `doctor`, `status` |
-| `configs/hypr/` | Live Hyprland config (`hyprland.conf`, `binds.conf`, `monitors.conf`, `autostart.conf`, `rules.conf`, `extra.conf`) |
+| `configs/hypr/` | Hyprland config: `hyprland.lua` (active) + the `.conf` fallback set (`hyprland.conf`, `binds.conf`, `monitors.conf`, `autostart.conf`, `rules.conf`, `extra.conf`) |
 | `configs/binds/` | `omarchy.conf` — the Omarchy keybind profile (`install.sh binds omarchy`) |
 | `configs/bin/` | Executables deployed to `~/.local/bin` (`omarchy-arch`, `omarchy-pkg`, `omarchy-shim`) |
 | `configs/debauchery/` | `config.example` — the keys `install.sh` reads from `~/.config/debauchery/config` |
