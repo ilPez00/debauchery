@@ -13,9 +13,11 @@ cd ~/debauchery
 ./install.sh config            # settings: keymap, look, night filter, plugins
 ./install.sh                   # TUI menu on a TTY, `status` when piped
 ./install.sh install --dry-run # print every command first
-./install.sh install --profile core|feel|arch|apple|all
+./install.sh install --profile core|feel|arch|apple|all|system
 ./install.sh binds omarchy     # Omarchy keybinds; `binds niri` restores
 ./install.sh update            # git pull --ff-only + re-apply + doctor
+sudo ./bootstrap.sh --dry-run  # full system installer: print plan
+sudo ./bootstrap.sh --user NAME [--with-arch] [--autologin] [--omarchy-binds]  # install
 ```
 
 Modules are declared once in `modules.conf`; flags, config keys and profiles are
@@ -54,6 +56,10 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `scripts/10-omarchy-tools.sh` | Install the map's `arch:`/`aur:` Omarchy tools in the container and export the binaries to `~/.local/bin` (`--dry-run`, `--check`, `--export-only`) |
 | `scripts/11-omarchy-shims.sh` | Deploy `omarchy-shim` + the 23 `omarchy-*` verb symlinks (`--check`, `--uninstall`) |
 | `scripts/12-gen-lua-binds.py` | Regenerate the Lua bind block from `hyprctl binds -j` after a keymap change |
+| `scripts/13-base-system.sh` | Base system: apt sources, packages, fonts, subuids, zsh (root) |
+| `scripts/14-display-manager.sh` | ly display manager: source build, config, ly@tty1 (root) |
+| `scripts/15-dms-shell.sh` | DMS + quickshell from OBS repos (root) |
+| `scripts/16-session-wiring.sh` | User session: hyprland-session.service + dms symlink (user) |
 | `scripts/backup-desktop.sh` | Back up desktop configs before changes |
 | `scripts/create-arch-distrobox.sh` | Thin wrapper for the distrobox create step |
 
@@ -65,6 +71,7 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | Path | What |
 |---|---|
 | `install.sh` | The entrypoint: install / update / doctor / status / binds / set / uninstall / TUI menu |
+| `bootstrap.sh` | Full system installer entrypoint (Debian netinst → Omarchy layer) |
 | `modules.conf` | Module table: id, script, scope, profiles, check — the single source of order |
 | `VERSION` | Version printed by `install.sh --help`, `doctor`, `status` |
 | `configs/hypr/` | Hyprland config: `hyprland.lua` (active) + the `.conf` fallback set (`hyprland.conf`, `binds.conf`, `monitors.conf`, `autostart.conf`, `rules.conf`, `extra.conf`) |
@@ -75,15 +82,20 @@ in `docs/INSTALL.md`; the agent contract is `AGENTS.md`.
 | `configs/arch-debian.map` | Arch package name → Debian/container target, read by `omarchy-pkg` |
 | `configs/bin/omarchy-shim` | every Omarchy verb (34): DMS, capture, plugin store, web apps |
 | `configs/dms-plugins.lock.json` | the 15 DMS plugins pinned to exact commits (`dms plugins restore`, or `omarchy-plugin-lock` to refresh) |
-| `docs/` | `CONTRACT.md`, `INSTALL.md`, `TROUBLESHOOTING.md`, `LUA-PORT.md` |
+| `configs/apt/` | Vendored OBS keyrings + sources lists (danklinux, dms, trixie-backports) |
+| `configs/ly/` | ly config template + opt-in PAM autologin |
+| `configs/systemd/` | hyprland-session.service (user unit) |
+| `docs/` | `CONTRACT.md`, `INSTALL.md`, `INSTALLER.md`, `TROUBLESHOOTING.md`, `LUA-PORT.md` |
 | `AGENTS.md` | Non-interactive contract: allowed commands, exit codes, never-do list |
 | `notes/` | Status log (applied changes, disk cleanup account) |
 | `backups/` | Dated config backups (git-ignored) |
 
-## Status (2026-11-14, v0.2.0)
+## Status (2026-11-19, v0.3.0)
 
-`./install.sh doctor` → **exit 0, 0 fails, 0 warns**. `./install.sh status` is
-the executable truth; `STATE.md` is the narrative one.
+`./install.sh doctor` → **exit 0, 0 fails** (2 warns: the optional physis
+adapter is currently absent on air). Run it with the live session env
+(`HYPRLAND_INSTANCE_SIGNATURE`, `XDG_RUNTIME_DIR`) or `binds-live` reads 0.
+`./install.sh status` is the executable truth; `STATE.md` is the narrative one.
 
 - Hyprland 0.55.2 installed and running (ly auto-login); config verifies clean.
 - DMS active as the shell; `xdg-desktop-portal-hyprland` **not** masked.
@@ -95,8 +107,11 @@ the executable truth; `STATE.md` is the narrative one.
   (verified), zsh aliases (`ar`, `ap`, `om`, `deb`, …).
 - Both bind profiles pass `Hyprland --verify-config`; the deployed one is still
   `niri`, so existing muscle memory is unchanged.
-- Disk: **8 GB free (93 % used)** — `DEBAUCHERY_MIN_DISK_G=5` gates AUR work.
+- Disk: **14 GB free (87 % used)** — `DEBAUCHERY_MIN_DISK_G=5` gates AUR work.
 - niri remains installed and selectable as a fallback.
+- System installer tier (v0.3.0): `bootstrap.sh`, scripts 13–16, vendored assets,
+  container + VM gate harnesses. G1/G2/G4 pass on air; G3 (container root tier)
+  and the live VM run are the remaining proofs — see `PLAN-INSTALLER.md` §6.
 
 ## Next
 

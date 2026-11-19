@@ -309,3 +309,50 @@ mid-session; swap is the same one the niri-noctalia session performs).
       is the truth for this list.
 - [ ] Optional: root-tier cleanup (`apt-get clean`, journal vacuum,
       `flatpak uninstall --unused`) — ran 2026-11-12, gained ~0.
+
+## 10. System installer tier (v0.3.0)
+
+Implemented 2026-11-19 per PLAN-INSTALLER.md:
+
+**Vendored assets (P1):**
+- `configs/apt/home-AvengeMedia-danklinux.gpg` (sha256: 07072e47c3971c95d3d5afae9b392ce230f07a2f186e88c6c5ea4e875cac3dcf)
+- `configs/apt/home-AvengeMedia-dms.gpg` (same key)
+- `configs/apt/danklinux.list`, `configs/apt/dms.list`, `configs/apt/trixie-backports.list`
+- `configs/ly/config.lua` (derived from `/etc/ly/config.lua`, autologin nil; `--autologin` sets user/session via sed)
+- `configs/ly/pam-autologin` (verbatim `/etc/pam.d/ly-autologin`, opt-in only)
+- `configs/systemd/hyprland-session.service` (verbatim air unit)
+
+**Scripts (P2):**
+- `scripts/lib-installer.sh` — shared helpers (ilog/iwarn/idie, require_root, preflight_debian, disk_free_g, require_disk, backup_once, atomic_install, ensure_obs_repos, systemd_available, run)
+- `scripts/13-base-system.sh` — apt sources, base packages, MesloLGS NF fonts, subuids/subgids, zsh, chsh
+- `scripts/14-display-manager.sh` — ly source build (pinned commit 747955ce, zig 0.17.0), config, ly@tty1, autologin opt-in
+- `scripts/15-dms-shell.sh` — dms + quickshell from OBS repos
+- `scripts/16-session-wiring.sh` — user-scope: hyprland-session.service + dms.service symlink
+- `bootstrap.sh` — root entrypoint: runs 13→14→15→01→[03], handoff to install.sh, doctor gate, firstboot checklist
+
+**Wiring (P3):**
+- `modules.conf` — added base, dm, shell, session rows; hyprland profile += system; module_args for base/dm
+- `install.sh` — usage header += bootstrap pointer; module_args for base/dm; profile += system
+- `VERSION` → 0.3.0
+- `README.md` — bootstrap in install/operate + scripts table + directories
+- `docs/INSTALL.md` — system profile + bare metal/VM section pointing to INSTALLER.md
+- `docs/INSTALLER.md` — NEW: bare-metal runbook (netinst steps, bootstrap flags, what lands where, PAM exception, verification gates, VM harness, rollback)
+- `AGENTS.md` — bootstrap --dry-run allowed; sudo bootstrap requires human decision; PAM exception documented
+- `docs/CONTRACT.md` — stability budget: bootstrap tier documented exceptions (ly upstream PAM, opt-in autologin, apt sources, ly@tty1)
+- `STATE.md` — this section
+
+**VM harness (P5):**
+- `configs/preseed.cfg` — Debian 13 netinst preseed template
+- `scripts/test-install-vm.sh` — qemu harness (ISO download, preseed serve, boot, SSH wait, doctor+selftest+binds verification)
+
+**Verification gates (executed during build):**
+- G1 syntax: `bash -n` on all scripts — PASS (this build)
+- G2 dry-run: `./bootstrap.sh --dry-run` as gio — PASS (plan printed, exit 0, nothing changed)
+- G3 container system tier: PENDING (requires podman + debian:trixie)
+- G4 air idempotence: `./install.sh install --only session --yes` + doctor — PASS (session no-op verified; doctor fails=0, warns=2 = physis adapter absent, pre-existing drift; 141 binds live with session env)
+- G5 VM harness: `bash -n scripts/test-install-vm.sh` + preseed sanity — PASS (syntax ok; live run PENDING qemu)
+
+**Pending:**
+- Live VM run (needs `sudo apt install qemu-system-x86` — user decision)
+- zig tarball sha256 pin after first verified fetch (record in docs/INSTALLER.md)
+- Container gate G3 execution

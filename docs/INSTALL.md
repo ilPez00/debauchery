@@ -34,8 +34,13 @@ cd ~/debauchery
 | `arch` | + archbox, tools | yes (archbox only) |
 | `apple` | + fnrow | no |
 | `all` | everything | yes |
+| `system` | base, dm, shell, hyprland, session | yes (all root) |
 
 Order is fixed by `modules.conf`; the installer never reorders dependencies.
+
+The `system` profile is invoked by `bootstrap.sh`, not directly by `install.sh`.
+`bootstrap.sh` runs the root-tier scripts (13–15, 01, 03) then hands off to
+`install.sh install --only backup,bridge,zsh,hyprcfg,binds,shims,session`.
 
 ## Flags
 
@@ -112,3 +117,21 @@ codes, log path, and the operations that are out of bounds.
 | bridge | `./scripts/08-arch-bridge.sh --check` | no `FAILED` |
 | shims | `./scripts/11-omarchy-shims.sh --check` | `23/23`, exit 0 |
 | aliases | `zsh -c 'source ~/.config/debauchery/aliases.zsh; alias ar'` | `ar=omarchy-arch` |
+
+## Bare metal / VM (full system)
+
+For a fresh Debian 13 netinst → Omarchy layer in one command, see `docs/INSTALLER.md`.
+
+```bash
+# On the target machine (as root):
+git clone https://github.com/ilPez00/debauchery.git ~/debauchery
+cd ~/debauchery
+./bootstrap.sh --dry-run                    # print the full plan
+sudo ./bootstrap.sh --user NAME             # install (add --with-arch --autologin --omarchy-binds as needed)
+```
+
+The `bootstrap.sh` entrypoint runs the root tier (scripts 13–15, 01, 03) then
+hands off to `install.sh` for the user-scope layer. Verification gates include
+`install.sh doctor` (as the target user) and the firstboot checklist.
+
+VM testing: `scripts/test-install-vm.sh` (requires qemu + KVM, see INSTALLER.md).

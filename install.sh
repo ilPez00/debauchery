@@ -6,12 +6,14 @@
 #   ./install.sh status              what is installed and what drifted
 #   ./install.sh config              settings: keymap, look, plugins (TUI; prints when piped)
 #   ./install.sh selftest            read-only smoke test + the manual key list
-#   ./install.sh install [--profile core|feel|arch|apple|all]
+#   ./install.sh install [--profile core|feel|arch|apple|all|system]
 #                        [--only id,id] [--yes] [--dry-run] [--no-sudo]
 #   ./install.sh update              git pull --ff-only, re-apply, doctor
 #   ./install.sh binds niri|omarchy  switch the keybind profile
 #   ./install.sh set KEY=VALUE       write ~/.config/debauchery/config
 #   ./install.sh uninstall [--all]   undo this layer (system bits are printed)
+#   sudo ./bootstrap.sh [--user NAME] [--with-arch] [--autologin] [--omarchy-binds]
+#                        [--skip-handoff] [--dry-run] [--yes]   # full system installer
 #
 # Exit codes: 0 healthy / done, 1 warnings only, 2 failure or bad preflight.
 # Logs: ~/.local/state/debauchery/install-<timestamp>.log
@@ -172,6 +174,8 @@ module_args() { # id -> extra args for its script
   case "$1" in
     physis) printf 'install' ;;
     fnrow)  printf '2' ;;
+    base)   printf '--user %s' "$SUDO_USER" ;;
+    dm)     printf '--user %s' "$SUDO_USER" ;;
   esac
 }
 

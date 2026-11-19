@@ -211,8 +211,14 @@ This layer never:
 * runs the compositor or a portal inside the container,
 * deletes a config without a `.pre-debauchery` copy.
 
+**Bootstrap tier documented exceptions (v0.3.0):**
+* ly upstream `installexe` installs `/etc/pam.d/ly` (normal PAM auth) — allowed, upstream-managed.
+* Opt-in autologin: `14-display-manager.sh --autologin` writes `/etc/pam.d/ly-autologin` (pam_permit) — the ONE documented opt-in PAM exception.
+* apt sources: `/etc/apt/sources.list.d/` (backports, OBS) and `/etc/apt/keyrings/` (vendored keys).
+* `ly@tty1.service` enable / `getty@tty1.service` disable (systemd system units).
+
 Everything user-scope is reversible with `./install.sh uninstall`; container and
-compositor are removed by `scripts/07-rollback.sh`.
+compositor are removed by `scripts/07-rollback.sh`. System tier undo is printed by `bootstrap.sh --dry-run` (see `docs/INSTALLER.md`).
 
 ## Adding a verb
 

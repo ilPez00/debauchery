@@ -36,6 +36,7 @@ Never infer health from a single command's exit code; `doctor` is the gate.
 | `./install.sh install --only <ids>` | user-scope subset |
 | `./install.sh binds niri\|omarchy` | swaps `~/.config/hypr/binds.conf`, backs it up |
 | `./install.sh set KEY=VALUE` | writes `~/.config/debauchery/config` |
+| `./bootstrap.sh --dry-run` | read-only; prints full system installer plan |
 
 ## Requires a human decision
 
@@ -43,6 +44,8 @@ Never infer health from a single command's exit code; `doctor` is the gate.
   apt/pacman and can take minutes on this 2-core machine.
 * `update` — moves the repo, then re-applies.
 * `uninstall --all` — prints rollback commands for the compositor and container.
+* `sudo ./bootstrap.sh …` — installs system packages, builds ly from source,
+  enables systemd units, writes `/etc/ly/config.lua` and (opt-in) `/etc/pam.d/ly-autologin`.
 * Anything that runs `sudo pacman -S`, `paru -S`, or an AUR build.
 * Disk below `DEBAUCHERY_MIN_DISK_G` (5 GiB): stop, do not "free a bit" by
   deleting user data.
@@ -50,12 +53,10 @@ Never infer health from a single command's exit code; `doctor` is the gate.
 ## Never
 
 * `git add -A`, `git push --force`, history rewrites.
-* Write to `/etc/pam.d`, mask `xdg-desktop-portal-hyprland`, install a kernel or
-  a compositor from the AUR.
-* Run the compositor, a display portal or a systemd **system** unit inside the
-  container.
-* Edit `~/.config/hypr/binds.conf` directly — edit `configs/hypr/binds.conf`
-  (niri) or `configs/binds/omarchy.conf` (omarchy) and re-run `binds`.
+* Write to `/etc/pam.d` — **except** `/etc/pam.d/ly-autologin` via `14-display-manager.sh --autologin` (the ONE documented opt-in exception).
+* Mask `xdg-desktop-portal-hyprland`, install a kernel or a compositor from the AUR.
+* Run the compositor, a display portal or a systemd **system** unit inside the container.
+* Edit `~/.config/hypr/binds.conf` directly — edit `configs/hypr/binds.conf` (niri) or `configs/binds/omarchy.conf` (omarchy) and re-run `binds`.
 * Touch `~/.config/dms/settings.json` or the niri config; they are the fallback.
 
 ## Interpreting failures
