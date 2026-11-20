@@ -400,7 +400,9 @@ cmd_doctor() {
   local fails=0 warns=0 rows=() detail status
   load_config
   emit() { # status name detail
-    local s=$1 n=$2 d=${3//\"/\'}
+    local s=$1 n=$2 d
+    d=$(printf '%s' "$3" | tr -d '\000-\037')
+    d=${d//\"/\'}
     if [ "$JSON" = 1 ]; then
       rows+=("$(printf '{"status":"%s","check":"%s","detail":"%s"}' "$s" "$n" "$d")")
       return 0
@@ -431,7 +433,7 @@ cmd_doctor() {
   log ""
   log "session"
   judge '[ "${XDG_CURRENT_DESKTOP:-}" = Hyprland ]' WARN session "${XDG_CURRENT_DESKTOP:-none} (want Hyprland)"
-  judge 'systemctl --user is-active --quiet dms.service' FAIL dms "dms.service $(systemctl --user is-active dms.service 2>/dev/null || echo unknown)"
+  judge 'systemctl --user is-active --quiet dms.service' FAIL dms "dms.service $(systemctl --user is-active dms.service 2>/dev/null | head -1)"
   judge '! systemctl --user is-enabled xdg-desktop-portal-hyprland.service 2>/dev/null | grep -q masked' FAIL portal "xdg-desktop-portal-hyprland masked?"
   judge '[ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/physis-omarchy.sock" ]' WARN physis-socket "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/physis-omarchy.sock"
   # A config that parses is not a session with working keys: a parse error at

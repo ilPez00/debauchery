@@ -119,8 +119,9 @@ if [ "$(uname -m)" != x86_64 ]; then
   echo "expected x86_64, found $(uname -m)" >&2; exit 2
 fi
 FREE_G=$(df --output=avail -BG / | tail -1 | tr -dc '0-9')
-if [ "${FREE_G:-0}" -lt 10 ]; then
-  echo "disk: ${FREE_G}G free on / — need 10G" >&2; exit 2
+MIN_DISK_G=${DEBAUCHERY_BOOTSTRAP_MIN_DISK_G:-10}
+if [ "${FREE_G:-0}" -lt "$MIN_DISK_G" ]; then
+  echo "disk: ${FREE_G}G free on / — need ${MIN_DISK_G}G" >&2; exit 2
 fi
 # Network check
 if ! apt-get update -qq >/dev/null 2>&1; then

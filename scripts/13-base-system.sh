@@ -56,7 +56,7 @@ TARGET_HOME=$(eval echo "~$TARGET_USER")
 ilog "== 13-base-system: target user = $TARGET_USER =="
 preflight_debian
 require_root
-require_disk 10
+require_disk "${DEBAUCHERY_BOOTSTRAP_MIN_DISK_G:-10}"
 
 # 2. Base packages (one apt call, recommends wanted)
 ilog "Installing base packages..."

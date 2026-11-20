@@ -11,25 +11,30 @@
 # The installer kernel/initrd are EXTRACTED FROM THE ISO (never the host's).
 # A throwaway ed25519 keypair is generated per run and injected via preseed.
 #
-# Usage: ./scripts/test-install-vm.sh [--keep] [--user NAME] [--password-hash HASH] [--dry-run]
-#   --keep             leave the VM dir (disk, console.log, key) for debugging
+# Usage: ./scripts/test-install-vm.sh [--keep] [--user NAME] [--password-hash HASH]
+#                                     [--gate-only] [--dry-run]
+#   --keep             leave the VM dir (disk, console logs, key) for debugging
 #   --user NAME        VM username (default: debauchery)
 #   --password-hash    SHA-512 crypt hash from `mkpasswd -m sha-512` (required)
+#   --gate-only        skip the install; boot an existing installed disk and gate
 #   --dry-run          print the plan, change nothing
+# Env: VM_SSH_TIMEOUT_MIN (install phase, default 120),
+#      VM_BOOT_TIMEOUT_MIN (ssh wait, default 30), VM_REUSE_DISK=1
 set -euo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-DRY_RUN=0 KEEP=0 VM_USER="debauchery" PASSWORD_HASH=""
+DRY_RUN=0 KEEP=0 GATE_ONLY=0 VM_USER="debauchery" PASSWORD_HASH=""
 
 # Pinned Debian 13.7.0 netinst ISO (sha256 verified on the 2026-11-20 fetch).
 # If the URL moves to a new point release, re-verify and re-pin.
 ISO_URL="https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.7.0-amd64-netinst.iso"
 ISO_SHA256="a7ef94ac2fb9a7fec454552abd629b7cc9d5155c886165a45649f5ce6167e355"
 
-usage() { sed -n '2,17p' "$0"; }
+usage() { sed -n '2,21p' "$0"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep)            KEEP=1; shift ;;
+    --gate-only)       GATE_ONLY=1; shift ;;
     --user)            VM_USER=${2:-}; shift 2 ;;
     --user=*)          VM_USER=${1#*=}; shift ;;
     --password-hash)   PASSWORD_HASH=${2:-}; shift 2 ;;
@@ -64,11 +69,11 @@ trap cleanup EXIT
 
 if [ "$DRY_RUN" = 1 ]; then
   log "== test-install-vm.sh --dry-run =="
-  log "VM user: $VM_USER   dir: $VM_DIR"
+  log "VM user: $VM_USER   dir: $VM_DIR   gate-only: $GATE_ONLY"
   log "ISO: $ISO_URL (sha256 pinned)"
   log "kernel/initrd extracted from ISO (install.amd/), NOT the host's"
   log "preseed rendered with __USER__/__PASSWORD_HASH__/__SSH_PUBKEY__"
-  log "qemu: kvm, 3G, 2 cpus, virtio disk+net, virtio-vga-gl, egl-headless"
+  log "qemu: kvm, 3G, 2 cpus, 16G qcow2, virtio disk+net, virtio-vga-gl, egl-headless"
   log "      hostfwd tcp::$SSH_PORT-:22, serial -> $CONSOLE"
   log "append: console=ttyS0 auto=true url=http://10.0.2.2:$HTTP_PORT/preseed.cfg priority=critical"
   log "phase 1: installer (-kernel d-i + preseed), waits for POWEROFF"
@@ -77,10 +82,12 @@ if [ "$DRY_RUN" = 1 ]; then
   exit 0
 fi
 
-[ -n "$PASSWORD_HASH" ] || die "--password-hash required (generate with: mkpasswd -m sha-512)"
 command -v qemu-system-x86_64 >/dev/null 2>&1 || die "qemu missing — install with: sudo apt install qemu-system-x86"
 [ -e /dev/kvm ] || die "/dev/kvm missing"
 mkdir -p "$VM_DIR"
+
+if [ "$GATE_ONLY" = 0 ]; then
+[ -n "$PASSWORD_HASH" ] || die "--password-hash required (generate with: mkpasswd -m sha-512)"
 
 # ISO
 if [ ! -f "$ISO_FILE" ]; then
@@ -120,12 +127,13 @@ sed -e "s/__USER__/$VM_USER/g" \
     -e "s|__SSH_PUBKEY__|$PUBKEY|g" \
   "$REPO/configs/preseed.cfg" > "$PRESEED"
 
-# Disk (an interrupted install leaves an unbootable disk — recreate unless asked)
+# Disk (an interrupted install leaves an unbootable disk — recreate unless asked).
+# 16G: d-i uses ~3G, bootstrap's default gate wants 10G free, desktop ~4G more.
 if [ -f "$DISK" ] && [ "${VM_REUSE_DISK:-0}" != 1 ]; then
   log "Removing stale disk from a previous run"
   rm -f "$DISK"
 fi
-[ -f "$DISK" ] || qemu-img create -f qcow2 "$DISK" 12G >/dev/null
+[ -f "$DISK" ] || qemu-img create -f qcow2 "$DISK" 16G >/dev/null
 
 # Preseed http server (slirp guest reaches the host loopback via 10.0.2.2)
 (cd "$VM_DIR" && exec python3 -m http.server "$HTTP_PORT" --bind 127.0.0.1 >/dev/null 2>&1) &
@@ -163,7 +171,14 @@ if kill -0 "$QEMU_PID" 2>/dev/null; then
 fi
 wait "$QEMU_PID" 2>/dev/null || true
 QEMU_PID=""
+kill "$HTTP_PID" 2>/dev/null || true
+HTTP_PID=""
 log "Installer powered off — phase 2: booting the installed system"
+else
+  [ -f "$DISK" ] || die "--gate-only: no installed disk at $DISK — run a full install first"
+  [ -f "$VM_KEY" ] || die "--gate-only: no gate key at $VM_KEY"
+  log "Gate-only: booting existing installed disk"
+fi
 
 BOOT_CONSOLE="$VM_DIR/console-boot.log"
 qemu-system-x86_64 \
@@ -197,7 +212,7 @@ log "Gate: install.sh doctor --json"
 vm "cd ~/debauchery && ./install.sh doctor --json" > "$VM_DIR/doctor.json" || true
 python3 - "$VM_DIR/doctor.json" <<'PY' || die "doctor gate failed"
 import json, sys
-d = json.load(open(sys.argv[1]))
+d = json.loads(open(sys.argv[1]).read(), strict=False)
 session_checks = {"dms", "binds-live", "session"}
 hard = [c for c in d["checks"] if c["status"] == "FAIL" and c["check"] not in session_checks]
 soft = [c for c in d["checks"] if c["status"] == "FAIL" and c["check"] in session_checks]
@@ -218,7 +233,7 @@ BINDS=$(vm 'export XDG_RUNTIME_DIR=/run/user/$(id -u); export HYPRLAND_INSTANCE_
 if [ "${BINDS:-0}" -ge 20 ]; then
   log "hyprctl binds: $BINDS (>= 20) — PASS"
 else
-  warn "binds=$BINDS — autologin/Hyprland may need a console look (see $CONSOLE)"
+  warn "binds=$BINDS — autologin/Hyprland may need a console look (see $BOOT_CONSOLE)"
   die "live binds gate failed"
 fi
 
