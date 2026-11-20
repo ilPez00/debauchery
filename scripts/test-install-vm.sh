@@ -71,6 +71,8 @@ if [ "$DRY_RUN" = 1 ]; then
   log "qemu: kvm, 3G, 2 cpus, virtio disk+net, virtio-vga-gl, egl-headless"
   log "      hostfwd tcp::$SSH_PORT-:22, serial -> $CONSOLE"
   log "append: console=ttyS0 auto=true url=http://10.0.2.2:$HTTP_PORT/preseed.cfg priority=critical"
+  log "phase 1: installer (-kernel d-i + preseed), waits for POWEROFF"
+  log "phase 2: boot installed disk (no -kernel), ssh gate"
   log "gate: ssh -i $VM_KEY; doctor non-session fails=0; selftest; binds >= 20"
   exit 0
 fi
@@ -130,7 +132,7 @@ fi
 HTTP_PID=$!
 sleep 1
 
-log "Starting QEMU (console -> $CONSOLE)..."
+log "Phase 1: installer boot (console -> $CONSOLE)..."
 qemu-system-x86_64 \
   -enable-kvm -m 3072 -cpu host -smp 2 \
   -drive file="$DISK",format=qcow2,if=virtio \
@@ -143,18 +145,48 @@ qemu-system-x86_64 \
   -append "console=ttyS0 auto=true url=http://10.0.2.2:$HTTP_PORT/preseed.cfg priority=critical" &
 QEMU_PID=$!
 
-SSH_OPTS=(-i "$VM_KEY" -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT")
+# The preseed powers the VM off after late_command. Waiting for ssh here would
+# loop the installer forever: -kernel reloads d-i on every reboot (observed:
+# 13 install cycles in 120 min). Wait for the poweroff, then boot the disk.
 TIMEOUT_MIN=${VM_SSH_TIMEOUT_MIN:-120}
-log "Waiting for SSH on 127.0.0.1:$SSH_PORT (timeout ${TIMEOUT_MIN} min)..."
-up=0
+log "Waiting for installer to finish and power off (timeout ${TIMEOUT_MIN} min)..."
 for i in $(seq 1 $((TIMEOUT_MIN * 4))); do
-  if ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" true 2>/dev/null; then up=1; break; fi
+  kill -0 "$QEMU_PID" 2>/dev/null || break
   if [ $((i % 20)) = 0 ]; then
     log "  ...$((i / 4)) min elapsed; console: $(tail -c 400 "$CONSOLE" | tr -d '\r' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | tr -s ' \n' ' ' | tail -c 120)"
   fi
   sleep 15
 done
-[ "$up" = 1 ] || { tail -c 2000 "$CONSOLE" >&2; die "SSH timeout after ${TIMEOUT_MIN} minutes (console tail above)"; }
+if kill -0 "$QEMU_PID" 2>/dev/null; then
+  tail -c 2000 "$CONSOLE" >&2
+  die "installer did not power off within ${TIMEOUT_MIN} min (console tail above)"
+fi
+wait "$QEMU_PID" 2>/dev/null || true
+QEMU_PID=""
+log "Installer powered off — phase 2: booting the installed system"
+
+BOOT_CONSOLE="$VM_DIR/console-boot.log"
+qemu-system-x86_64 \
+  -enable-kvm -m 3072 -cpu host -smp 2 \
+  -drive file="$DISK",format=qcow2,if=virtio \
+  -netdev user,id=net0,hostfwd=tcp::"$SSH_PORT"-:22 \
+  -device virtio-net-pci,netdev=net0 \
+  -device virtio-vga-gl -display egl-headless \
+  -serial file:"$BOOT_CONSOLE" &
+QEMU_PID=$!
+
+SSH_OPTS=(-i "$VM_KEY" -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT")
+BOOT_TIMEOUT_MIN=${VM_BOOT_TIMEOUT_MIN:-30}
+log "Waiting for SSH on 127.0.0.1:$SSH_PORT (timeout ${BOOT_TIMEOUT_MIN} min)..."
+up=0
+for i in $(seq 1 $((BOOT_TIMEOUT_MIN * 4))); do
+  if ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" true 2>/dev/null; then up=1; break; fi
+  if [ $((i % 20)) = 0 ]; then
+    log "  ...$((i / 4)) min; boot console: $(tail -c 300 "$BOOT_CONSOLE" | tr -d '\r' | tr -s ' \n' ' ' | tail -c 120)"
+  fi
+  sleep 15
+done
+[ "$up" = 1 ] || { tail -c 2000 "$BOOT_CONSOLE" >&2; die "SSH timeout after install (${BOOT_TIMEOUT_MIN} min)"; }
 log "SSH up"
 
 vm() { ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "$@"; }
