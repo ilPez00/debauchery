@@ -61,6 +61,11 @@ require_disk "${DEBAUCHERY_BOOTSTRAP_MIN_DISK_G:-10}"
 # 2. Base packages (one apt call, recommends wanted)
 ilog "Installing base packages..."
 run apt-get update
+# Ensure resolv.conf exists for DNS in chroot
+if [ ! -s /etc/resolv.conf ]; then
+  echo "nameserver 10.0.2.3" > /etc/resolv.conf
+  echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+fi
 for _ in 1 2 3; do
   if run apt-get install -y \
     sudo zsh git curl ca-certificates gnupg whiptail network-manager pipewire \

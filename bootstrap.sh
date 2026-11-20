@@ -124,6 +124,11 @@ if [ "${FREE_G:-0}" -lt "$MIN_DISK_G" ]; then
   echo "disk: ${FREE_G}G free on / — need ${MIN_DISK_G}G" >&2; exit 2
 fi
 # Network check with retries (late_command chroot can have transient network issues)
+# Ensure resolv.conf exists for DNS in chroot
+if [ ! -s /etc/resolv.conf ]; then
+  echo "nameserver 10.0.2.3" > /etc/resolv.conf
+  echo "nameserver 1.1.1.1" >> /etc/resolv.conf
+fi
 for _ in 1 2 3; do
   if apt-get update -qq >/dev/null 2>&1; then break; fi
   sleep 5
