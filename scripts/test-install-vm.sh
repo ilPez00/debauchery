@@ -204,6 +204,8 @@ done
 [ "$up" = 1 ] || { tail -c 2000 "$BOOT_CONSOLE" >&2; die "SSH timeout after install (${BOOT_TIMEOUT_MIN} min)"; }
 log "SSH up"
 
+vm() { ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "$@"; }
+
 # Wait for first-boot bootstrap service to complete (it runs on first boot via systemd)
 BOOTSTRAP_TIMEOUT_MIN=${VM_BOOTSTRAP_TIMEOUT_MIN:-60}
 log "Waiting for debauchery-bootstrap.service to complete (timeout ${BOOTSTRAP_TIMEOUT_MIN} min)..."
