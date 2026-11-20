@@ -1,0 +1,13 @@
+[Unit]
+Description=Debauchery first-boot bootstrap
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/__USER__/debauchery/bootstrap.sh --user __USER__ --yes --autologin --omarchy-binds
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
