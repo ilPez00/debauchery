@@ -21,10 +21,10 @@ set -euo pipefail
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DRY_RUN=0 KEEP=0 VM_USER="debauchery" PASSWORD_HASH=""
 
-# Pinned Debian 13 netinst ISO. sha256 is UNPINNED until the first verified
-# fetch — record it here after that run (same policy as the zig tarball).
+# Pinned Debian 13.7.0 netinst ISO (sha256 verified on the 2026-11-20 fetch).
+# If the URL moves to a new point release, re-verify and re-pin.
 ISO_URL="https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.7.0-amd64-netinst.iso"
-ISO_SHA256=""
+ISO_SHA256="a7ef94ac2fb9a7fec454552abd629b7cc9d5155c886165a45649f5ce6167e355"
 
 usage() { sed -n '2,17p' "$0"; }
 while [ $# -gt 0 ]; do
@@ -65,10 +65,10 @@ trap cleanup EXIT
 if [ "$DRY_RUN" = 1 ]; then
   log "== test-install-vm.sh --dry-run =="
   log "VM user: $VM_USER   dir: $VM_DIR"
-  log "ISO: $ISO_URL (sha256 unpinned)"
+  log "ISO: $ISO_URL (sha256 pinned)"
   log "kernel/initrd extracted from ISO (install.amd/), NOT the host's"
   log "preseed rendered with __USER__/__PASSWORD_HASH__/__SSH_PUBKEY__"
-  log "qemu: kvm, 4G, 4 cpus, virtio disk+net, virtio-vga-gl, egl-headless"
+  log "qemu: kvm, 3G, 2 cpus, virtio disk+net, virtio-vga-gl, egl-headless"
   log "      hostfwd tcp::$SSH_PORT-:22, serial -> $CONSOLE"
   log "append: console=ttyS0 auto=true url=http://10.0.2.2:$HTTP_PORT/preseed.cfg priority=critical"
   log "gate: ssh -i $VM_KEY; doctor non-session fails=0; selftest; binds >= 20"
@@ -118,7 +118,11 @@ sed -e "s/__USER__/$VM_USER/g" \
     -e "s|__SSH_PUBKEY__|$PUBKEY|g" \
   "$REPO/configs/preseed.cfg" > "$PRESEED"
 
-# Disk
+# Disk (an interrupted install leaves an unbootable disk — recreate unless asked)
+if [ -f "$DISK" ] && [ "${VM_REUSE_DISK:-0}" != 1 ]; then
+  log "Removing stale disk from a previous run"
+  rm -f "$DISK"
+fi
 [ -f "$DISK" ] || qemu-img create -f qcow2 "$DISK" 12G >/dev/null
 
 # Preseed http server (slirp guest reaches the host loopback via 10.0.2.2)
@@ -128,7 +132,7 @@ sleep 1
 
 log "Starting QEMU (console -> $CONSOLE)..."
 qemu-system-x86_64 \
-  -enable-kvm -m 4096 -cpu host -smp 4 \
+  -enable-kvm -m 3072 -cpu host -smp 2 \
   -drive file="$DISK",format=qcow2,if=virtio \
   -cdrom "$ISO_FILE" \
   -netdev user,id=net0,hostfwd=tcp::"$SSH_PORT"-:22 \
@@ -140,13 +144,17 @@ qemu-system-x86_64 \
 QEMU_PID=$!
 
 SSH_OPTS=(-i "$VM_KEY" -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$SSH_PORT")
-log "Waiting for SSH on 127.0.0.1:$SSH_PORT (timeout 40 min)..."
+TIMEOUT_MIN=${VM_SSH_TIMEOUT_MIN:-120}
+log "Waiting for SSH on 127.0.0.1:$SSH_PORT (timeout ${TIMEOUT_MIN} min)..."
 up=0
-for _ in $(seq 1 160); do
+for i in $(seq 1 $((TIMEOUT_MIN * 4))); do
   if ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" true 2>/dev/null; then up=1; break; fi
+  if [ $((i % 20)) = 0 ]; then
+    log "  ...$((i / 4)) min elapsed; console: $(tail -c 400 "$CONSOLE" | tr -d '\r' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | tr -s ' \n' ' ' | tail -c 120)"
+  fi
   sleep 15
 done
-[ "$up" = 1 ] || { tail -20 "$CONSOLE" >&2; die "SSH timeout after 40 minutes (console tail above)"; }
+[ "$up" = 1 ] || { tail -c 2000 "$CONSOLE" >&2; die "SSH timeout after ${TIMEOUT_MIN} minutes (console tail above)"; }
 log "SSH up"
 
 vm() { ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "$@"; }
