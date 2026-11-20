@@ -348,11 +348,10 @@ Implemented 2026-11-19 per PLAN-INSTALLER.md:
 **Verification gates (executed during build):**
 - G1 syntax: `bash -n` on all scripts — PASS (this build)
 - G2 dry-run: `./bootstrap.sh --dry-run` as gio — PASS (plan printed, exit 0, nothing changed)
-- G3 container system tier: PENDING (requires podman + debian:trixie)
+- G3 container system tier: PASS 2026-11-20 (podman debian:trixie; ly built from pinned commit, dms+quickshell+Hyprland installed, all assertions ok; host untouched)
 - G4 air idempotence: `./install.sh install --only session --yes` + doctor — PASS (session no-op verified; doctor fails=0, warns=2 = physis adapter absent, pre-existing drift; 141 binds live with session env)
 - G5 VM harness: `bash -n scripts/test-install-vm.sh` + preseed sanity — PASS (syntax ok; live run PENDING qemu)
 
 **Pending:**
 - Live VM run (needs `sudo apt install qemu-system-x86` — user decision)
 - zig tarball sha256 pin after first verified fetch (record in docs/INSTALLER.md)
-- Container gate G3 execution

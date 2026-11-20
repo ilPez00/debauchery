@@ -110,8 +110,8 @@ adapter is currently absent on air). Run it with the live session env
 - Disk: **14 GB free (87 % used)** — `DEBAUCHERY_MIN_DISK_G=5` gates AUR work.
 - niri remains installed and selectable as a fallback.
 - System installer tier (v0.3.0): `bootstrap.sh`, scripts 13–16, vendored assets,
-  container + VM gate harnesses. G1/G2/G4 pass on air; G3 (container root tier)
-  and the live VM run are the remaining proofs — see `PLAN-INSTALLER.md` §6.
+  container + VM gate harnesses. G1–G4 pass (G3 container root-tier proof
+  2026-11-20); the live VM run is the remaining proof — see `PLAN-INSTALLER.md` §6.
 
 ## Next
 

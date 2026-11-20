@@ -342,7 +342,7 @@ root needs a password anyway — hand root commands to the user), any
 - [x] P1 vendored assets (§4.6) + this plan
 - [x] P2 lib + scripts 13–16 + bootstrap.sh (§4.1–4.7)
 - [x] P3 wiring: modules.conf, install.sh, VERSION, docs (§5)
-- [ ] P4 gates G1–G4 (§6)
+- [x] P4 gates G1–G4 (§6) — G3 container PASS 2026-11-20
 - [x] P5 VM harness written + G5 (§4.8)
 - [x] P6 commit (specific files, never -A) + push; STATE/notes updated (fleet-sync deferred: user asked to push this work only)
 

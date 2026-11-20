@@ -123,12 +123,18 @@ fi
 # 8. subuids/subgids
 ilog "Configuring subuids/subgids for $TARGET_USER..."
 if ! grep -q "^$TARGET_USER:" /etc/subuid 2>/dev/null; then
-  # Find next free 65536 range starting from 100000
+  # Find next free 65536 range starting from 100000.
+  # Continue while the start is INSIDE an existing range: grep matches the
+  # start field, or awk finds a covering range (awk exits 1 on overlap, so it
+  # must be negated — exit 0 means "no overlap", i.e. stop).
   START=100000
   if [ -f /etc/subuid ]; then
     while grep -q ":$START:" /etc/subuid 2>/dev/null || \
-          awk -F: -v s="$START" '$2 <= s && ($2+$3) > s { exit 1 }' /etc/subuid 2>/dev/null; do
+          ! awk -F: -v s="$START" '$2 <= s && ($2+$3) > s { exit 1 }' /etc/subuid 2>/dev/null; do
       START=$((START + 65536))
+      if [ "$START" -gt 6563600000 ]; then
+        idie "no free 65536 subuid range found below 6563600000"
+      fi
     done
   fi
   END=$((START + 65535))
