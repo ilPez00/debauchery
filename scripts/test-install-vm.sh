@@ -204,6 +204,30 @@ done
 [ "$up" = 1 ] || { tail -c 2000 "$BOOT_CONSOLE" >&2; die "SSH timeout after install (${BOOT_TIMEOUT_MIN} min)"; }
 log "SSH up"
 
+# Wait for first-boot bootstrap service to complete (it runs on first boot via systemd)
+BOOTSTRAP_TIMEOUT_MIN=${VM_BOOTSTRAP_TIMEOUT_MIN:-60}
+log "Waiting for debauchery-bootstrap.service to complete (timeout ${BOOTSTRAP_TIMEOUT_MIN} min)..."
+for i in $(seq 1 $((BOOTSTRAP_TIMEOUT_MIN * 4))); do
+  if vm "systemctl is-active debauchery-bootstrap.service 2>/dev/null | grep -q 'inactive' && systemctl is-failed debauchery-bootstrap.service 2>/dev/null | grep -q 'failed'" 2>/dev/null; then
+    log "bootstrap service FAILED"
+    vm "journalctl -u debauchery-bootstrap.service --no-pager -n 50" >&2
+    die "bootstrap service failed"
+  fi
+  if vm "systemctl is-active debauchery-bootstrap.service 2>/dev/null | grep -q 'inactive' && ! systemctl is-failed debauchery-bootstrap.service 2>/dev/null | grep -q 'failed'" 2>/dev/null; then
+    log "bootstrap service completed successfully"
+    break
+  fi
+  if [ $((i % 20)) = 0 ]; then
+    log "  ...$((i / 4)) min; bootstrap status: $(vm 'systemctl status debauchery-bootstrap.service --no-pager -n 5 2>/dev/null | head -10' | tr -d '\r' | tr -s ' \n' ' ' | tail -c 120)"
+  fi
+  sleep 15
+done
+# Check if it completed
+if ! vm "systemctl is-active debauchery-bootstrap.service 2>/dev/null | grep -q 'inactive' && ! systemctl is-failed debauchery-bootstrap.service 2>/dev/null | grep -q 'failed'" 2>/dev/null; then
+  die "bootstrap service did not complete within ${BOOTSTRAP_TIMEOUT_MIN} min"
+fi
+log "Bootstrap service completed"
+
 vm() { ssh "${SSH_OPTS[@]}" "$VM_USER@127.0.0.1" "$@"; }
 
 # Gate 1: doctor — session-dependent checks (dms, binds-live) may fail before
