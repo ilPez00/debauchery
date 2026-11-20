@@ -61,10 +61,16 @@ require_disk "${DEBAUCHERY_BOOTSTRAP_MIN_DISK_G:-10}"
 # 2. Base packages (one apt call, recommends wanted)
 ilog "Installing base packages..."
 run apt-get update
-run apt-get install -y \
-  sudo zsh git curl ca-certificates gnupg whiptail network-manager pipewire \
-  wireplumber bluez brightnessctl playerctl grim slurp wl-clipboard alacritty \
-  chromium wf-recorder tesseract-ocr fonts-noto-color-emoji
+for _ in 1 2 3; do
+  if run apt-get install -y \
+    sudo zsh git curl ca-certificates gnupg whiptail network-manager pipewire \
+    wireplumber bluez brightnessctl playerctl grim slurp wl-clipboard alacritty \
+    chromium wf-recorder tesseract-ocr fonts-noto-color-emoji; then
+    break
+  fi
+  ilog "apt install failed, retrying in 5s..."
+  sleep 5
+done
 
 # 3. non-free-firmware component
 if ! grep -rqs 'non-free-firmware' /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then

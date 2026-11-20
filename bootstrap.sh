@@ -123,9 +123,13 @@ MIN_DISK_G=${DEBAUCHERY_BOOTSTRAP_MIN_DISK_G:-10}
 if [ "${FREE_G:-0}" -lt "$MIN_DISK_G" ]; then
   echo "disk: ${FREE_G}G free on / — need ${MIN_DISK_G}G" >&2; exit 2
 fi
-# Network check
+# Network check with retries (late_command chroot can have transient network issues)
+for _ in 1 2 3; do
+  if apt-get update -qq >/dev/null 2>&1; then break; fi
+  sleep 5
+done
 if ! apt-get update -qq >/dev/null 2>&1; then
-  echo "network: apt-get update failed" >&2; exit 2
+  echo "network: apt-get update failed after retries" >&2; exit 2
 fi
 
 echo "== debauchery bootstrap =="
