@@ -89,6 +89,8 @@ All external keys and sources are vendored in the repo — no network key fetch 
 | `configs/ly/config.lua` | derived from `/etc/ly/config.lua` | `/etc/ly/config.lua` (if absent) |
 | `configs/ly/pam-autologin` | `/etc/pam.d/ly-autologin` | `/etc/pam.d/ly-autologin` (opt-in only) |
 | `configs/systemd/hyprland-session.service` | air's unit verbatim | `~/.config/systemd/user/` |
+| `configs/systemd/arch-omarchy-container.service` | cleanup + start container at login | `~/.config/systemd/user/` |
+| `configs/systemd/herdr.service.d/10-container.conf` | boot ordering drop-in for the exported herdr shim | `~/.config/systemd/user/herdr.service.d/` |
 
 **OBS key sha256 (both files identical):**
 `07072e47c3971c95d3d5afae9b392ce230f07a2f186e88c6c5ea4e875cac3dcf`

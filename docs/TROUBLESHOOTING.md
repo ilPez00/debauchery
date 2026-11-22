@@ -85,6 +85,8 @@ from the sourced file after the second colon.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `state: stopped (starts on next use)` | normal — podman stops idle containers | next `omarchy-arch` call restarts it (~0.4 s) |
+| `cannot start a container that has stopped` / ``runc start <id> … exit status 1`` | an aborted start left the container `Initialized`; plain `podman start` cannot clear that state | `podman container cleanup arch-omarchy && podman start arch-omarchy` — cleanup is the step that fixes it; the `boxboot` module makes this automatic at login |
+| a `systemd --user` unit crash-loops (`NRestarts` climbing) and its `ExecStart` is a `distrobox-export` shim like `~/.local/bin/herdr` | the shim calls `distrobox-enter -n arch-omarchy`, a hidden dependency the unit file never declares — grep the `ExecStart` path, not just `~/.config/systemd/user/` | `boxboot` deploys `arch-omarchy-container.service` (cleanup + start, enabled at `default.target`) and `herdr.service.d/10-container.conf` (`Requires=`/`After=` + `StartLimitBurst=5/300s`); verify with `systemctl --user show herdr.service -p NRestarts -p ActiveState` |
 | `distrobox create` hangs at 0 bytes | `quay.io/toolbx/arch-toolbox` is a **schema1** manifest podman dropped | use `quay.io/archlinux/archlinux:latest` (already the default) |
 | `UNAUTHORIZED` pulling `quay.io/toolbx-images/...` | registry auth | do not retry; use the image above |
 | `newuidmap: write to uid_map failed` | no subuids | `sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 gio`, re-login |

@@ -214,7 +214,45 @@ Notes:
   entry.
 - Teardown: `./scripts/08-arch-bridge.sh --uninstall` (container untouched).
 
-## 13. Safety
+## 13. Boot ordering — exported services vs. the container
+
+`distrobox-export --bin` puts a shim on the host PATH that calls
+`distrobox-enter -n arch-omarchy -- <binary>`. Any user unit whose `ExecStart`
+is such a shim depends on the container even though its unit file says nothing
+about podman. `herdr.service` is the concrete case: `ExecStart=%h/.local/bin/herdr
+server` is a shim, so at boot it raced the container and crash-looped with
+`cannot start a container that has stopped`, `NRestarts=58`.
+
+The state behind that error is `Initialized` (created but never successfully
+started). `podman start` alone does **not** clear it; `podman container cleanup
+<name>` does, and `podman start` then succeeds. The container's home and
+packages are untouched — never recreate the box to fix this.
+
+Module `boxboot` (`scripts/17-container-boot.sh`, profiles `arch,all`) installs:
+
+| File | Role |
+|---|---|
+| `configs/systemd/arch-omarchy-container.service` → `~/.config/systemd/user/` | oneshot, `RemainAfterExit=yes`, enabled at `default.target`; exits 0 if already `running`, otherwise cleans stale state then `podman start arch-omarchy` |
+| `configs/systemd/herdr.service.d/10-container.conf` → `~/.config/systemd/user/herdr.service.d/` | `Requires=`/`After=arch-omarchy-container.service` and `StartLimitIntervalSec=300` / `StartLimitBurst=5` so a future breakage fails fast instead of looping |
+
+The drop-in, not an edit of `herdr.service`, is deliberate: re-exporting the
+shim rewrites the unit but leaves the drop-in in place.
+
+Deploy and verify:
+
+```bash
+./install.sh install --only boxboot
+./scripts/17-container-boot.sh --check
+systemctl --user show herdr.service -p NRestarts -p ActiveState -p SubState
+podman ps -a --format '{{.Names}} {{.Status}}'
+```
+
+Want `NRestarts=0`, `active/running`, and the container `Up`. Simulate a reboot
+without one: `podman stop arch-omarchy`, `systemctl --user stop
+arch-omarchy-container.service`, `systemctl --user restart herdr.service` — the
+container must come back on its own.
+
+## 14. Safety
 
 - Distrobox is for **tools**, never for the compositor or system services.
 - Keep the container home separate.
