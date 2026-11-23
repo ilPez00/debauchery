@@ -264,7 +264,8 @@ Keep `distrobox` disabled in `~/.config/topgrade.toml`:
 
 ```toml
 [misc]
-disable = ["containers", "ollama", "distrobox"]
+pre_sudo = true
+disable = ["containers", "ollama", "distrobox", "cursor"]
 ```
 
 Upgrade the box deliberately with `omarchy-arch --bootstrap-aur` /

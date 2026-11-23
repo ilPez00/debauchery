@@ -93,7 +93,7 @@ from the sourced file after the second colon.
 | `pacman` inside the box says "not root" | invoking `pacman -S` through plain `omarchy-arch` (runs unprivileged) | use the `pacman` shim: `pacman -S …`, or `omarchy-pkg add …` |
 | `paru` resolves to the host shim | distrobox exports the host `PATH` into the box | already fixed: the gateway pins the container `PATH`, sets `OMARCHY_IN_BOX=1`, and inside an Arch container the shims hand off to `/usr/bin/<name>` |
 | `omarchy-arch uname -a` says Debian | containers share the host kernel — expected | `omarchy-arch --os` |
-| topgrade's `distrobox` step leaves `/var/lib/pacman/db.lck` (0 bytes, stale) and every `pacman -S` / `omarchy-pkg add` in the box fails or waits forever | an interrupted `distrobox upgrade --all` (topgrade runs `pacman -S -y -y`) left the lock behind; a lock file alone blocks all installs | `podman exec arch-omarchy pgrep -ax pacman` (must be empty), then `podman exec arch-omarchy rm -f /var/lib/pacman/db.lck`; never `podman rm` the box. On air the step stays disabled: `~/.config/topgrade.toml` has `disable = ["containers", "ollama", "distrobox"]` — keep the container upgrades manual |
+| topgrade's `distrobox` step leaves `/var/lib/pacman/db.lck` (0 bytes, stale) and every `pacman -S` / `omarchy-pkg add` in the box fails or waits forever | an interrupted `distrobox upgrade --all` (topgrade runs `pacman -S -y -y`) left the lock behind; a lock file alone blocks all installs | `podman exec arch-omarchy pgrep -ax pacman` (must be empty), then `podman exec arch-omarchy rm -f /var/lib/pacman/db.lck`; never `podman rm` the box. On air the step stays disabled: `~/.config/topgrade.toml` has `disable = ["containers", "ollama", "distrobox", "cursor"]` — keep the container upgrades manual |
 | AUR build dies mid-way | disk filled (this box has done it) | free space, `omarchy-pkg add <pkg>` again; prefer `-bin` packages |
 | `paru` prints `Ci sono 3 provider disponibili` and then fails | a package with `-bin` / `-git` variants; `--noconfirm` picks nothing and paru exits | name the variant in the map: `herdr aur:herdr-bin` |
 | `zig=0.16.0 (richiesto da: herdr)` | the AUR package pins an exact toolchain Arch does not ship | use its `-bin` package instead of building |
@@ -142,6 +142,26 @@ stripping the suffix.
 | a web app launcher has the generic icon | that domain serves no favicon (google s2 answers 200 with an empty body) | pass one: `omarchy-webapp-install Name https://site https://site/icon.png` |
 | touchpad toggle does nothing | device name changed | `hyprctl devices -j \| jq -r '.mice[].name'`; the shim picks `bcm\|touchpad\|trackpad` |
 | `alias ar` missing in a new shell | `~/.zshrc` does not source `~/.config/debauchery/aliases.zsh` | `./install.sh install --only zsh` |
+
+## topgrade (whole-system update)
+
+`topgrade` on air is meant to be run with no flags. `~/.config/topgrade.toml`
+has `pre_sudo = true` so the sudo password is asked once at the start, and
+`disable = ["containers", "ollama", "distrobox", "cursor"]`:
+
+- `containers`: docker is masked on this host (see the 2026-10 incident).
+- `ollama`: models live on omo/pansa; a local pull would fill the root fs.
+- `distrobox`: see above — it left a stale pacman lock and broke Arch installs.
+- `cursor`: only the `cursor agent` CLI is installed, not the IDE; its shim
+  fails `cursor --version`, so the step can never succeed. `cursor_agent` is
+  NOT disabled and still updates.
+
+`topgrade --dry-run` used to fail on `pnpm` too: the global pnpm install had
+an unwrapped JS file without a shebang (`Exec format error`) and its
+`global-bin-dir` was `/home/gio/.local/share/pnpm/bin`, not on `PATH`. Fixed
+with `node ~/.npm-global/lib/node_modules/pnpm/install.js` and
+`pnpm config set global-bin-dir ~/.npm-global/bin`. Verify with
+`topgrade --dry-run`: every step reports `OK`, no `failed:` lines.
 
 ## Docs that lied
 
