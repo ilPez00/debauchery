@@ -65,8 +65,8 @@ Container gateway (`omarchy-arch`, alias `arch`; `ar` is the short form):
 | `omarchy-arch --os` (alias `aro`) | the container's own OS (uname shows the host kernel) |
 | `omarchy-arch --bootstrap-aur` | install `paru` + `yay` in the container (needs network) |
 
-Terminal keys (omarchy profile): `SUPER+T` = Arch container shell,
-`SUPER+R` = Debian host shell, `SUPER+Return` = Debian host shell.
+Terminal keys (omarchy profile): `SUPER+T` = Debian host shell,
+`SUPER+R` = Arch container shell, `SUPER+Return` = Debian host shell.
 
 ## Install / remove / TUI (Arch-specific via distrobox)
 
@@ -196,8 +196,8 @@ cycle · `SUPER+P` pseudo · `SUPER+S` scratchpad · `SUPER+grave` quake console
 | D5 | `SUPER+E` | unbound | browser | kept from air's habit; costs nothing |
 | D6 | `SUPER+A` | universal select-all | control centre | same key-forwarding reason as D2 |
 | D7 | `SUPER+X` | universal cut | power menu | same; `omarchy-menu-power` lives on `SUPER+ESCAPE` |
-| D8 | `SUPER+T` | float toggle | Arch container terminal (`alacritty -e omarchy-arch`) | air's terminal split: T = Arch box, R = Debian host |
-| D9 | `SUPER+R` | resize submap | host (Debian) terminal | requested; resize moved to `SUPER+SHIFT+R` |
+| D8 | `SUPER+T` | float toggle | Debian host terminal (`alacritty --class debian --title Debian`) | air's terminal split: T = Debian host, R = Arch box |
+| D9 | `SUPER+R` | resize submap | Arch container terminal (`alacritty --class arch --title Arch -e omarchy-arch`) | requested; resize moved to `SUPER+SHIFT+R` |
 
 Everything else is the niri profile's problem, not this one: `binds niri` restores
 `H/J/K/L` focus and the rest exactly as they were.
