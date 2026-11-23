@@ -142,6 +142,7 @@ stripping the suffix.
 | a web app launcher has the generic icon | that domain serves no favicon (google s2 answers 200 with an empty body) | pass one: `omarchy-webapp-install Name https://site https://site/icon.png` |
 | touchpad toggle does nothing | device name changed | `hyprctl devices -j \| jq -r '.mice[].name'`; the shim picks `bcm\|touchpad\|trackpad` |
 | `alias ar` missing in a new shell | `~/.zshrc` does not source `~/.config/debauchery/aliases.zsh` | `./install.sh install --only zsh` |
+| a Debian terminal opens but fastfetch says `Arch Linux` | `~/.local/bin/fastfetch` is a distrobox-exported shim that enters `arch-omarchy`; `.zshrc` runs `fastfetch` at every shell start, so the banner came from the box while the shell was host zsh | `.zshrc` now calls `/usr/bin/fastfetch` first (`[ -x /usr/bin/fastfetch ] && /usr/bin/fastfetch || fastfetch`) in both the startup line and the `ff` alias; verified in a real alacritty: banner says `distro Debian GNU/Linux 13 (trixie)`. Host-first also removes a hidden container dependency from every new terminal |
 
 ## topgrade (whole-system update)
 
