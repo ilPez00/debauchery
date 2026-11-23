@@ -148,7 +148,7 @@ hl.window_rule({
     hl.bind("SUPER + SHIFT + CTRL + Down", hl.dsp.window.move({ monitor = "d" }))
     hl.bind("SUPER + CTRL + Left", hl.dsp.focus({ monitor = "l" }))
     hl.bind("SUPER + CTRL + Right", hl.dsp.focus({ monitor = "r" }))
-    hl.bind("SUPER + R", hl.dsp.exec_cmd("alacritty"))
+    hl.bind("SUPER + R", hl.dsp.exec_cmd("alacritty --class debian --title Debian"))
     hl.bind("SUPER + SHIFT + R", hl.dsp.submap("resize"))
     hl.bind("SUPER + Space", hl.dsp.exec_cmd("omarchy-menu"))
     hl.bind("SUPER + Escape", hl.dsp.exec_cmd("omarchy-menu-power"))

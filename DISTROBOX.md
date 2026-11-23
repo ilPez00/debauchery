@@ -252,6 +252,27 @@ without one: `podman stop arch-omarchy`, `systemctl --user stop
 arch-omarchy-container.service`, `systemctl --user restart herdr.service` — the
 container must come back on its own.
 
+## 13a. topgrade must not upgrade the box
+
+topgrade 17.17 has a `distrobox` step. On air it runs `pacman -S -y -y` inside
+`arch-omarchy`; an interrupted run on 2026-11-16 left a 0-byte
+`/var/lib/pacman/db.lck` behind, so every later `pacman -S` / `omarchy-pkg add`
+in the box failed or waited forever. That is debauchery's Arch install path,
+not a topgrade problem to solve by upgrading more.
+
+Keep `distrobox` disabled in `~/.config/topgrade.toml`:
+
+```toml
+[misc]
+disable = ["containers", "ollama", "distrobox"]
+```
+
+Upgrade the box deliberately with `omarchy-arch --bootstrap-aur` /
+`omarchy-pkg` and verify `podman exec arch-omarchy pgrep -ax pacman` is empty
+after any interrupted upgrade; only then remove a stale
+`/var/lib/pacman/db.lck` (never recreate the container — its home and AUR
+packages live there).
+
 ## 14. Safety
 
 - Distrobox is for **tools**, never for the compositor or system services.
