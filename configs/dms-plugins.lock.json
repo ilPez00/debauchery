@@ -60,6 +60,14 @@
       "repo": "https://github.com/godsGived/dms-display-modes",
       "commit": "39cda93a10c87a45c1f0fd6e54423ae3d8113661"
     },
+    "githubInbox": {
+      "repo": "https://github.com/TMS-Namespace/DMS-GitHub-Inbox-Plugin",
+      "commit": "262a5e7de915f3ca4e5560051eb18259d0c02f33"
+    },
+    "mailChecker": {
+      "repo": "https://github.com/Rocho-EL-Locho/dms-mail-checker",
+      "commit": "21a0f60dfb76645b6593200f52bf0a43292925c9"
+    },
     "networkIndicator": {
       "repo": "https://github.com/gemb0-0/Network-Indicator.git",
       "commit": "7f5062350532495063e6c281e947d90cfecbeb37"

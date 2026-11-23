@@ -62,6 +62,47 @@ niri and DMS are untouched; the default session stays niri.
 - Plugins disabled under Hyprland can be re-enabled:
   `dms ipc call plugins enable <id>`.
 
+### 3.4a Omarchy layer (plugins, overlay) — Debian stays the base
+
+air does **not** run upstream Omarchy (Arch + Quickshell). `omarchy version`
+reports `debauchery 0.3.0 (Debian + DMS + distrobox)`: the command names and
+muscle memory are Omarchy's, the implementation is Debian user scope. No
+PAM/portal/systemd-system file is touched, so a broken "Omarchy" layer cannot
+take the host down.
+
+- Plugins: `omarchy plugin search <query>` (`dms plugins browse` for the full
+  419-entry registry), `omarchy plugin install|remove|enable|disable <id>`.
+  The 20 installed plugins are pinned with repo + commit in
+  `configs/dms-plugins.lock.json`. Refresh after a change with
+  `dms plugins lock -o ~/debauchery/configs/dms-plugins.lock.json`; restore the
+  exact set with `dms plugins restore configs/dms-plugins.lock.json`
+  (`--prune` also removes extras). The Omarchy-style root menu is already in
+  that set: plugin `dankMenu`, invoked by `omarchy menu` / Super+Space.
+- Keybind overlay (Omarchy's cheatsheet equivalent): Super+Y runs
+  `dms ipc call keybinds toggle hypr`; `omarchy menu keybindings` toggles the
+  same overlay. Verified live: `KEYBINDS_TOGGLE_SUCCESS: hypr`.
+- "Rice" switches: `omarchy rice` / Super+M — `shell dms|noctalia`,
+  `menus dankmenu|spotlight|launcher|powermenu|keybinds`, `bar`, `dock`,
+  `theme dark|light|next`, `binds omarchy|niri`, `login on|off`.
+
+Return to a known-good Debian shell (no Arch involvement):
+
+```bash
+omarchy rice shell dms
+omarchy rice binds omarchy
+omarchy rice menus dankmenu
+omarchy rice theme dark
+hyprctl reload
+cd ~/debauchery && ./install.sh doctor --json
+```
+
+If only the Arch box is broken, `omarchy-arch --stop` — the compositor, DMS
+and every shim keep working; never `distrobox rm` for a transient failure.
+If a plugin breaks the bar/menu: `omarchy plugin disable <id>` then
+`systemctl --user restart dms.service`; worst case
+`dms plugins restore ~/debauchery/configs/dms-plugins.lock.json --prune`.
+Final fallback: log out and pick niri at ly — it is still installed.
+
 ### 3.5 Arch Distrobox
 
 ```bash
