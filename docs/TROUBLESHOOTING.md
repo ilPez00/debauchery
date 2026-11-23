@@ -143,6 +143,7 @@ stripping the suffix.
 | touchpad toggle does nothing | device name changed | `hyprctl devices -j \| jq -r '.mice[].name'`; the shim picks `bcm\|touchpad\|trackpad` |
 | `alias ar` missing in a new shell | `~/.zshrc` does not source `~/.config/debauchery/aliases.zsh` | `./install.sh install --only zsh` |
 | a Debian terminal opens but fastfetch says `Arch Linux` | `~/.local/bin/fastfetch` is a distrobox-exported shim that enters `arch-omarchy`; `.zshrc` runs `fastfetch` at every shell start, so the banner came from the box while the shell was host zsh | `.zshrc` now calls `/usr/bin/fastfetch` first (`[ -x /usr/bin/fastfetch ] && /usr/bin/fastfetch || fastfetch`) in both the startup line and the `ff` alias; verified in a real alacritty: banner says `distro Debian GNU/Linux 13 (trixie)`. Host-first also removes a hidden container dependency from every new terminal |
+| the Arch terminal (Super+R) has different aliases/prompt from Debian | the distrobox container home had its own small `.zshrc` | module `boxzsh` sources the Debian host `.zshrc` inside the box while keeping the container `HOME`; `fastfetch` stays the container binary so the banner still says Arch. `./scripts/18-arch-shell.sh --check`, deploy with no flag, undo with `--uninstall` |
 
 ## topgrade (whole-system update)
 

@@ -274,6 +274,29 @@ after any interrupted upgrade; only then remove a stale
 `/var/lib/pacman/db.lck` (never recreate the container — its home and AUR
 packages live there).
 
+## 13b. Debian dotfiles inside the Arch box (`boxzsh`)
+
+`Super+R` opens `alacritty -e omarchy-arch`; since 2026-11-23 the shell in that
+box sources the Debian host `/home/gio/.zshrc`. The repo copy is
+`configs/zsh/arch-host.zshrc`, deployed by `scripts/18-arch-shell.sh` (module
+`boxzsh`, profile `arch,all`). `HOME` stays the distrobox container home — only
+while sourcing the host file is it pointed at the bind-mounted Debian home, so
+aliases, prompt, PATH and secrets resolve exactly as on the host. The banner
+still comes from the container's `/usr/bin/fastfetch`, so it says **Arch Linux**
+(and `omarchy-arch --os` still says Arch) — that is intentional. Arch-only
+aliases (`pac`, `pacs`, `pacu`, `ap`, `aa`, `debian=exit`,
+`arch="already in the Arch container"`) are defined *after* the host file so
+they win.
+
+```bash
+./scripts/18-arch-shell.sh --dry-run     # target path only
+./scripts/18-arch-shell.sh --check       # read-only drift check (doctor uses this)
+./scripts/18-arch-shell.sh               # back up + deploy
+./scripts/18-arch-shell.sh --uninstall   # restore newest .zshrc.bak-*
+./install.sh install --only boxzsh
+./install.sh doctor --json
+```
+
 ## 14. Safety
 
 - Distrobox is for **tools**, never for the compositor or system services.
